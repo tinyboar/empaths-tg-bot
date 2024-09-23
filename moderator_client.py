@@ -1,3 +1,5 @@
+# moderator_client.py
+
 import asyncio
 import websockets
 import arcade
@@ -97,6 +99,12 @@ class ModeratorClient(arcade.Window):
             anchor_x="center_x", anchor_y="center", child=self.start_game_button
         )
 
+        # Инициализация жетонов игроков
+        self.tokens = {i: {'id': i, 'alive': True} for i in range(1, NUM_PLAYERS + 1)}
+        self.night_phase = False
+
+		
+
     def start_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
@@ -189,32 +197,42 @@ class ModeratorClient(arcade.Window):
                 info_text = f"{self.red_empath_info[i + 1]}"
                 arcade.draw_text(info_text, token_x + 60, token_y - 10, arcade.color.YELLOW, 14)
 
-    def draw_token(self, player_id, x, y):
-        """Рисуем жетон для игрока в зависимости от его роли."""
-        token_color = self.token_colors[player_id]
-        arcade.draw_circle_filled(x, y, TOKEN_RADIUS, token_color)
-        arcade.draw_text(str(player_id), x - 10, y - 10, arcade.color.WHITE, 12)
+    def draw_token(self, token_id, x, y):
+        token = self.tokens[token_id]
+        color = self.token_colors[token_id] if token['alive'] else arcade.color.DARK_GRAY
+        arcade.draw_circle_filled(x, y, TOKEN_RADIUS, color)
+        arcade.draw_text(str(token_id), x - 10, y - 10, arcade.color.WHITE, 12)
+
+
 
     def on_mouse_press(self, x, y, button, modifiers):
         center_x = self.width // 2
         center_y = self.height // 2
 
-        # Проверяем, на какой жетон был клик
-        for i in range(NUM_PLAYERS):
-            angle = 2 * math.pi * i / NUM_PLAYERS
-            token_x = center_x + CIRCLE_RADIUS * math.cos(angle)
-            token_y = center_y + CIRCLE_RADIUS * math.sin(angle)
+        if self.night_phase:
+            # Модератор выбирает жетон для убийства ночью
+            for i in range(NUM_PLAYERS):
+                token_id = i + 1
+                token = self.tokens[token_id]
+                if token['alive']:
+                    angle = 2 * math.pi * i / NUM_PLAYERS
+                    token_x = center_x + CIRCLE_RADIUS * math.cos(angle)
+                    token_y = center_y + CIRCLE_RADIUS * math.sin(angle)
+                    if arcade.get_distance(x, y, token_x, token_y) < TOKEN_RADIUS:
+                        # Отправляем сообщение на сервер о ночном убийстве
+                        self.send_message({'action': 'night_kill', 'token_id': token_id})
+                        # Обновляем состояние жетона как "мертвый"
+                        self.tokens[token_id]['alive'] = False
+                        # Перекрашиваем жетон в серый цвет
+                        self.message_label.text = f"Вы убили ночью жетон {token_id}. Ждем действия игрока."
+                        self.on_draw()  # Перерисовка после изменения состояния
+                        self.night_phase = False
+                        break
+        else:
+            # Остальной код обработки нажатия на жетоны
+            pass
 
-            # Если клик попал по жетону
-            if arcade.get_distance(x, y, token_x, token_y) < TOKEN_RADIUS:
-                player_id = i + 1
-                if self.assigning_red_info and self.roles[player_id] in ["red", "demon"]:
-                    # Меняем информацию для красных эмпатов и демонов
-                    self.cycle_red_info(player_id)
-                elif not self.assigning_red_info:
-                    # Меняем роль игрока
-                    self.cycle_role(player_id)
-                break
+
 
     def cycle_role(self, player_id):
         """Циклически меняем роль игрока при каждом клике."""
@@ -292,12 +310,16 @@ class ModeratorClient(arcade.Window):
         self.manager.add(self.start_game_button_widget)
 
     def on_start_game(self, event):
-        """После начала игры показываем финальное сообщение."""
         # Удаляем кнопку "Начать игру" из менеджера
         self.manager.remove(self.start_game_button_widget)
 
         # Обновляем текстовое сообщение
         self.message_label.text = "Сейчас идет 1-й день, ждем пока игрок выберет кого казнить."
+
+        # Отправляем сообщение на сервер о начале игры
+        self.send_message({'action': 'start_game'})
+
+
 
     def on_update(self, delta_time):
         while not self.message_queue.empty():
@@ -311,11 +333,33 @@ class ModeratorClient(arcade.Window):
             self.message_label.text = data.get("text", "")
         elif action == "authenticated":
             self.message_label.text = "Аутентификация успешна."
-        elif action == "request_role_assignment":
-            self.assign_roles()
+        elif action == "token_killed":
+            token_id = data.get('token_id')
+            self.message_label.text = f"Игрок казнил жетон {token_id}. Теперь ваша очередь убить ночью."
+            # Обновляем состояние жетона
+            self.tokens[token_id]['alive'] = False
+            # Перерисовываем окно, чтобы обновить цвет жетона
+            self.night_phase = True
+            self.on_draw()  # Перерисовка после изменения состояния
+        elif action == "night_kill":
+            token_id = data.get('token_id')
+            self.message_label.text = f"Ночью был убит жетон {token_id}."
+            # Обновляем состояние жетона как "мертвый"
+            self.tokens[token_id]['alive'] = False
+            self.on_draw()  # Перерисовка после изменения состояния
+
 
     def run(self):
         arcade.run()
+        
+    
+    def send_message(self, message):
+        if self.connected and self.websocket:
+            asyncio.run_coroutine_threadsafe(
+                self.websocket.send(json.dumps(message)),
+                self.loop
+            )
+
 
 if __name__ == "__main__":
     client = ModeratorClient()

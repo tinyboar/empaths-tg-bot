@@ -2,9 +2,9 @@
 import asyncio
 import websockets
 import json
+import random
 
 NUM_PLAYERS = 16
-NUM_REDS = 4
 
 class Player:
     def __init__(self, websocket, player_id):
@@ -21,23 +21,42 @@ class GameState:
         self.moderator = None
         self.night_phase = False
         self.game_over = False
-        # Additional game state variables
+        self.initialize_players()  # Инициализируем виртуальных игроков
 
-    # Include all necessary methods from your GameState class
-    # For example, methods to assign roles, update game state, check for game over, etc.
+    def initialize_players(self):
+        # Создаем объекты для всех 16 виртуальных игроков
+        for player_id in range(1, NUM_PLAYERS + 1):
+            player = Player(None, player_id)  # websocket=None для виртуальных игроков
+            self.players[player_id] = player
+
+
+    def get_game_state_for_player(self, player_id):
+        # Возвращаем информацию о состоянии игры для конкретного игрока
+        player = self.players[player_id]
+        state = {
+            'player_id': player_id,
+            'tokens': [{'id': p_id} for p_id in self.players],
+        }
+        # Добавляем эмпатическую информацию
+        if player.role == 'blue':
+            state['empath_info'] = player.red_neighbors_count
+        elif player.role in ['red', 'demon']:
+            state['empath_info'] = player.fake_red_neighbors_count
+        else:
+            state['empath_info'] = None
+        return state
 
 class GameServer:
     def __init__(self):
         self.game_state = GameState()
 
     async def handler(self, websocket, path):
-        # Handle new client connections
         try:
             async for message in websocket:
                 data = json.loads(message)
                 await self.process_message(websocket, data)
         except websockets.ConnectionClosed:
-            # Handle disconnection
+            # Обработка отключения
             pass
 
     async def process_message(self, websocket, data):
@@ -51,49 +70,103 @@ class GameServer:
                     print("Модератор подключен.")
                 else:
                     await websocket.send(json.dumps({'action': 'error', 'message': 'Модератор уже подключен.'}))
-            elif role == 'player':
-                player_id = len(self.game_state.players) + 1
-                player = Player(websocket, player_id)
-                self.game_state.players[player_id] = player
-                await websocket.send(json.dumps({'action': 'authenticated', 'role': 'player', 'player_id': player_id}))
-                print(f"Игрок {player_id} подключен.")
+            elif role == 'player':  # Исправленный блок
+                if not hasattr(self, 'player_websocket'):
+                    self.player_websocket = websocket
+                    await websocket.send(json.dumps({'action': 'authenticated', 'role': 'player'}))
+                    print("Игрок подключен.")
+                else:
+                    await websocket.send(json.dumps({'action': 'error', 'message': 'Игрок уже подключен.'}))
         elif action == 'start_game':
-            # Проверяем, что сообщение пришло от модератора
             if websocket == self.game_state.moderator:
-                # Отправляем модератору запрос на назначение ролей
-                await websocket.send(json.dumps({'action': 'request_role_assignment'}))
-                print("Игра начата модератором. Запрашиваем назначение ролей.")
+                await self.assign_roles()
+                await self.send_game_state_to_player()
+                print("Игра начата модератором. Отправляем состояние игры игроку.")
             else:
                 await websocket.send(json.dumps({'action': 'error', 'message': 'Только модератор может начинать игру.'}))
-        elif action == 'assign_roles':
-            # Обработка назначения ролей
-            roles = data.get('roles')
-            if roles:
-                # Применяем роли к игрокам
-                for player_id_str, role in roles.items():
-                    player_id = int(player_id_str)
-                    if player_id in self.game_state.players:
-                        self.game_state.players[player_id].role = role
-                print("Роли назначены игрокам.")
-                # Отправляем обновление всем игрокам
-                await self.send_game_state()
+        elif action == 'kill_token':
+                token_id = data.get('token_id')
+                if token_id in self.game_state.players and self.game_state.players[token_id].alive:
+                    self.game_state.players[token_id].alive = False
+                    print(f"Игрок казнил жетон {token_id}")
+                    # Пересчитываем информацию для эмпатов
+                    self.calculate_empath_info()
+                    # Отправляем обновленное состояние игры игроку
+                    await self.send_game_state_to_player()
+                    # Уведомляем модератора о казни жетона
+                    await self.game_state.moderator.send(json.dumps({'action': 'token_killed', 'token_id': token_id}))
+        elif action == 'night_kill':
+            token_id = data.get('token_id')
+            if websocket == self.game_state.moderator:
+                if token_id in self.game_state.players and self.game_state.players[token_id].alive:
+                    self.game_state.players[token_id].alive = False
+                    print(f"Модератор убил ночью жетон {token_id}")
+                    # Отправляем обновленное состояние игры игроку
+                    await self.send_game_state_to_player()
+                else:
+                    await websocket.send(json.dumps({'action': 'error', 'message': 'Невозможно убить выбранный жетон.'}))
             else:
-                await websocket.send(json.dumps({'action': 'error', 'message': 'Нет данных о ролях.'}))
-        # Добавьте обработку других действий
+                await websocket.send(json.dumps({'action': 'error', 'message': 'Только модератор может убивать ночью.'}))
 
 
-    async def send_game_state(self):
-        # Отправляем обновление состояния игры всем подключенным клиентам
+    async def assign_roles(self):
+        player_ids = list(self.game_state.players.keys())
+        num_reds = 3
+        num_demons = 1
+
+        red_players = random.sample(player_ids, num_reds)
+        for player_id in red_players:
+            self.game_state.players[player_id].role = 'red'
+        remaining_players = [pid for pid in player_ids if pid not in red_players]
+        demon_player = random.choice(remaining_players)
+        self.game_state.players[demon_player].role = 'demon'
+        remaining_players.remove(demon_player)
+        for player_id in remaining_players:
+            self.game_state.players[player_id].role = 'blue'
+
+        # Рассчитываем информацию для эмпатов
+        self.calculate_empath_info()
+
+
+    def calculate_empath_info(self):
+        """Рассчитываем количество красных соседей для синих эмпатов."""
+        for player_id, player in self.game_state.players.items():
+            if player.role == 'blue':
+                # Рассчитываем соседей для каждого синего эмпата
+                left_neighbor_id = (player_id - 2) % NUM_PLAYERS + 1
+                right_neighbor_id = player_id % NUM_PLAYERS + 1
+                neighbors = [
+                    self.game_state.players[left_neighbor_id].role,
+                    self.game_state.players[right_neighbor_id].role
+                ]
+                # Считаем количество красных и демонов среди соседей
+                player.red_neighbors_count = neighbors.count('red') + neighbors.count('demon')
+
+
+    async def send_game_state_to_player(self):
         state = {
-            'action': 'update',
-            # Добавьте необходимые данные состояния игры
+            'tokens': [
+                {
+                    'id': player.player_id,
+                    'alive': player.alive
+                }
+                for player in self.game_state.players.values()
+            ],
+            'empath_info': {
+                player.player_id: player.red_neighbors_count
+                for player in self.game_state.players.values() if player.role == 'blue'
+            }
         }
-        # Отправляем модератору
-        if self.game_state.moderator:
-            await self.game_state.moderator.send(json.dumps(state))
-        # Отправляем игрокам
-        for player in self.game_state.players.values():
-            await player.websocket.send(json.dumps(state))
+        await self.player_websocket.send(json.dumps({'action': 'start_game', 'state': state}))
+
+
+    async def broadcast_start_game(self):
+        # Рассылка сообщения о начале игры всем игрокам
+        for player_id, player in self.game_state.players.items():
+            state = self.game_state.get_game_state_for_player(player_id)
+            message = {'action': 'start_game', 'state': state}
+            await player.websocket.send(json.dumps(message))
+            print(f"Отправлено сообщение start_game игроку {player_id}")
 
     def start(self):
         start_server = websockets.serve(self.handler, 'localhost', 12345)
