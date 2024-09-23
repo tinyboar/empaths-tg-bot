@@ -10,11 +10,11 @@ import threading
 import math
 import random
 
-SCREEN_WIDTH = 1600
-SCREEN_HEIGHT = 1090
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
 NUM_PLAYERS = 16
-CIRCLE_RADIUS = 300  # Радиус круга для размещения игроков
-TOKEN_RADIUS = 40  # Радиус жетона
+CIRCLE_RADIUS = 200  # Радиус круга для размещения игроков
+TOKEN_RADIUS = 20  # Радиус жетона
 
 ROLE_COLORS = {
     "blue": arcade.color.BLUE,      # Синий игрок
@@ -43,11 +43,11 @@ class ModeratorClient(arcade.Window):
             width=800,
             height=100,
             text_color=arcade.color.WHITE,
-            font_size=20,
+            font_size=14,
             align="center"
         )
         self.message_label_widget = arcade.gui.UIAnchorWidget(
-            anchor_x="center_x", anchor_y="top", align_y=-100, child=self.message_label
+            anchor_x="center_x", anchor_y="top", align_y=-20, child=self.message_label
         )
         self.manager.add(self.message_label_widget)
 
@@ -70,7 +70,7 @@ class ModeratorClient(arcade.Window):
         self.loop.call_soon_threadsafe(asyncio.ensure_future, self.connect())
 
         # Добавляем кнопку генерации раскладки
-        self.generate_button = arcade.gui.UIFlatButton(text="Сгенерировать раскладку", width=300)
+        self.generate_button = arcade.gui.UIFlatButton(text="Сгенерировать раскладку", width=200)
         self.generate_button.on_click = self.on_generate_roles
         self.generate_button_widget = arcade.gui.UIAnchorWidget(
             anchor_x="center_x", anchor_y="bottom", align_y=50, child=self.generate_button
@@ -78,7 +78,7 @@ class ModeratorClient(arcade.Window):
         self.manager.add(self.generate_button_widget)
 
         # Добавляем кнопку подтверждения ролей
-        self.submit_button = arcade.gui.UIFlatButton(text="Подтвердить роли", width=300)
+        self.submit_button = arcade.gui.UIFlatButton(text="Подтвердить роли", width=200)
         self.submit_button.on_click = self.on_submit_roles
         self.submit_button_widget = arcade.gui.UIAnchorWidget(
             anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_button
@@ -86,14 +86,14 @@ class ModeratorClient(arcade.Window):
         self.manager.add(self.submit_button_widget)
 
         # Кнопка для подтверждения информации красных эмпатов
-        self.submit_red_info_button = arcade.gui.UIFlatButton(text="Подтвердить информацию красных", width=300)
+        self.submit_red_info_button = arcade.gui.UIFlatButton(text="Подтвердить информацию красных", width=200)
         self.submit_red_info_button.on_click = self.on_submit_red_info
         self.submit_red_info_button_widget = arcade.gui.UIAnchorWidget(
             anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_red_info_button
         )
 
         # Кнопка для начала игры
-        self.start_game_button = arcade.gui.UIFlatButton(text="Начать игру", width=300)
+        self.start_game_button = arcade.gui.UIFlatButton(text="Начать игру", width=200)
         self.start_game_button.on_click = self.on_start_game
         self.start_game_button_widget = arcade.gui.UIAnchorWidget(
             anchor_x="center_x", anchor_y="center", child=self.start_game_button
@@ -162,7 +162,8 @@ class ModeratorClient(arcade.Window):
         # Убираем кнопку подтверждения ролей
         self.manager.remove(self.submit_button_widget)
 
-        # Показываем кнопку для подтверждения информации красных эмпатов
+        # Показываем кнопку для подтверждения информации красных эмпатов 
+        
         self.manager.add(self.submit_red_info_button_widget)
 
         # Обновляем сообщение для модератора
@@ -190,12 +191,12 @@ class ModeratorClient(arcade.Window):
             # Рисуем информацию для синих эмпатов
             if self.roles[i + 1] == "blue":
                 info_text = f"{self.blue_player_info[i + 1]}"
-                arcade.draw_text(info_text, token_x + 60, token_y - 10, arcade.color.WHITE, 14)
+                arcade.draw_text(info_text, token_x + 40, token_y - 10, arcade.color.WHITE, 14)
 
             # Рисуем информацию для красных эмпатов и демонов
             if self.roles[i + 1] in ["red", "demon"]:
                 info_text = f"{self.red_empath_info[i + 1]}"
-                arcade.draw_text(info_text, token_x + 60, token_y - 10, arcade.color.YELLOW, 14)
+                arcade.draw_text(info_text, token_x + 40, token_y - 10, arcade.color.YELLOW, 14)
 
     def draw_token(self, token_id, x, y):
         token = self.tokens[token_id]
@@ -295,6 +296,26 @@ class ModeratorClient(arcade.Window):
                     self.message_label.text = f"Ошибка: У игрока {player_id} не назначена информация."
                     return
 
+        # Создаем объединённую информацию для синих и красных эмпатов
+        empath_data = {}
+
+        # Добавляем информацию по синим эмпатам
+        for player_id, info in self.blue_player_info.items():
+            if self.roles[player_id] == "blue":
+                empath_data[player_id] = info
+
+        # Добавляем информацию по красным эмпатам
+        for player_id, info in self.red_empath_info.items():
+            if self.roles[player_id] in ["red", "demon"]:
+                empath_data[player_id] = info
+
+        # Отправляем информацию по эмпатам на сервер
+        print(empath_data)
+        self.send_message({
+            'action': 'submit_empath_info',
+            'empath_info': empath_data
+        })
+
         # Убираем кнопки "Сгенерировать раскладку" и "Подтвердить информацию красных"
         self.manager.remove(self.generate_button_widget)
         self.manager.remove(self.submit_red_info_button_widget)
@@ -308,6 +329,7 @@ class ModeratorClient(arcade.Window):
 
         # Добавляем кнопку "Начать игру" в центр экрана
         self.manager.add(self.start_game_button_widget)
+
 
     def on_start_game(self, event):
         # Удаляем кнопку "Начать игру" из менеджера
