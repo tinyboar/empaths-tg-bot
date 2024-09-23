@@ -44,11 +44,10 @@ class ModeratorClient(arcade.Window):
             font_size=20,
             align="center"
         )
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="top", align_y=-100, child=self.message_label
-            )
+        self.message_label_widget = arcade.gui.UIAnchorWidget(
+            anchor_x="center_x", anchor_y="top", align_y=-100, child=self.message_label
         )
+        self.manager.add(self.message_label_widget)
 
         # Очередь для сообщений из сетевого потока
         self.message_queue = queue.Queue()
@@ -71,28 +70,32 @@ class ModeratorClient(arcade.Window):
         # Добавляем кнопку генерации раскладки
         self.generate_button = arcade.gui.UIFlatButton(text="Сгенерировать раскладку", width=300)
         self.generate_button.on_click = self.on_generate_roles
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="bottom", align_y=50, child=self.generate_button
-            )
+        self.generate_button_widget = arcade.gui.UIAnchorWidget(
+            anchor_x="center_x", anchor_y="bottom", align_y=50, child=self.generate_button
         )
+        self.manager.add(self.generate_button_widget)
 
         # Добавляем кнопку подтверждения ролей
         self.submit_button = arcade.gui.UIFlatButton(text="Подтвердить роли", width=300)
         self.submit_button.on_click = self.on_submit_roles
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_button
-            )
+        self.submit_button_widget = arcade.gui.UIAnchorWidget(
+            anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_button
         )
+        self.manager.add(self.submit_button_widget)
 
         # Кнопка для подтверждения информации красных эмпатов
         self.submit_red_info_button = arcade.gui.UIFlatButton(text="Подтвердить информацию красных", width=300)
         self.submit_red_info_button.on_click = self.on_submit_red_info
+        self.submit_red_info_button_widget = arcade.gui.UIAnchorWidget(
+            anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_red_info_button
+        )
 
         # Кнопка для начала игры
         self.start_game_button = arcade.gui.UIFlatButton(text="Начать игру", width=300)
         self.start_game_button.on_click = self.on_start_game
+        self.start_game_button_widget = arcade.gui.UIAnchorWidget(
+            anchor_x="center_x", anchor_y="center", child=self.start_game_button
+        )
 
     def start_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
@@ -149,31 +152,20 @@ class ModeratorClient(arcade.Window):
         self.assigning_red_info = True
 
         # Убираем кнопку подтверждения ролей
-        self.submit_button.visible = False
+        self.manager.remove(self.submit_button_widget)
 
         # Показываем кнопку для подтверждения информации красных эмпатов
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_red_info_button
-            )
-        )
+        self.manager.add(self.submit_red_info_button_widget)
 
         # Обновляем сообщение для модератора
         self.message_label.text = "Роли сгенерированы. Теперь выберите информацию для красных эмпатов."
 
-
     def assign_roles(self):
         self.manager.clear()
         self.message_label.text = "Назначьте роли игрокам. Нажимайте на жетоны, чтобы поменять роль:"
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(anchor_x="center_x", anchor_y="top", align_y=-100, child=self.message_label)
-        )
+        self.manager.add(self.message_label_widget)
         # Добавляем кнопку подтверждения ролей обратно, если она была скрыта
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="bottom", align_y=0, child=self.submit_button
-            )
-        )
+        self.manager.add(self.submit_button_widget)
         self.assigning_red_info = False  # На этом этапе мы не выбираем информацию для красных
 
     def on_draw(self):
@@ -192,8 +184,8 @@ class ModeratorClient(arcade.Window):
                 info_text = f"{self.blue_player_info[i + 1]}"
                 arcade.draw_text(info_text, token_x + 60, token_y - 10, arcade.color.WHITE, 14)
 
-            # Рисуем информацию для красных эмпатов на этапе выбора информации
-            if self.roles[i + 1] in ["red", "demon"] and self.assigning_red_info:
+            # Рисуем информацию для красных эмпатов и демонов
+            if self.roles[i + 1] in ["red", "demon"]:
                 info_text = f"{self.red_empath_info[i + 1]}"
                 arcade.draw_text(info_text, token_x + 60, token_y - 10, arcade.color.YELLOW, 14)
 
@@ -273,12 +265,8 @@ class ModeratorClient(arcade.Window):
 
         # Переходим к шагу выбора информации красных эмпатов
         self.message_label.text = "Все роли назначены. Теперь выберите информацию для красных эмпатов."
-        self.submit_button.visible = False
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="bottom", child=self.submit_red_info_button
-            )
-        )
+        self.manager.remove(self.submit_button_widget)
+        self.manager.add(self.submit_red_info_button_widget)
 
     def on_submit_red_info(self, event):
         """После подтверждения информации красных показываем кнопку начала игры."""
@@ -290,36 +278,26 @@ class ModeratorClient(arcade.Window):
                     return
 
         # Убираем кнопки "Сгенерировать раскладку" и "Подтвердить информацию красных"
-        self.generate_button.visible = False
-        self.submit_red_info_button.visible = False
-        
-        # Очищаем менеджер от других элементов, чтобы разместить новую кнопку
+        self.manager.remove(self.generate_button_widget)
+        self.manager.remove(self.submit_red_info_button_widget)
+
+        # Очищаем менеджер
         self.manager.clear()
 
-        # Переходим к следующему этапу
-        self.assigning_red_info = False  # Завершаем этап выбора информации красных эмпатов
+        # Обновляем текстовое сообщение для модератора
         self.message_label.text = "Стол разложен. Нажмите 'Начать игру'."
+        self.manager.add(self.message_label_widget)
 
-        # Добавляем кнопку "Начать игру" в центр круга (центр экрана)
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="center", child=self.start_game_button
-            )
-        )
+        # Добавляем кнопку "Начать игру" в центр экрана
+        self.manager.add(self.start_game_button_widget)
 
     def on_start_game(self, event):
         """После начала игры показываем финальное сообщение."""
-        # Очищаем интерфейс от всех кнопок
-        self.manager.clear()
+        # Удаляем кнопку "Начать игру" из менеджера
+        self.manager.remove(self.start_game_button_widget)
 
-        # Отображаем финальное сообщение
+        # Обновляем текстовое сообщение
         self.message_label.text = "Сейчас идет 1-й день, ждем пока игрок выберет кого казнить."
-        self.manager.add(
-            arcade.gui.UIAnchorWidget(
-                anchor_x="center_x", anchor_y="top", align_y=-100, child=self.message_label
-            )
-        )
-
 
     def on_update(self, delta_time):
         while not self.message_queue.empty():
