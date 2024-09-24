@@ -34,7 +34,7 @@ class Player:
 
 class GameState:
     def __init__(self):
-        self.players = {}  # Хранит всех подключенных игроков
+        self.players = {}
         self.initialize_players()
 
     def initialize_players(self):
@@ -200,8 +200,6 @@ class ModeratorServer(arcade.Window):
 
     async def send_game_state_to_all_players(self):
         """Отправка состояния игры всем игрокам через их WebSocket"""
-        # Обновляем информацию об эмпатах перед отправкой
-        self.update_blue_neighbors()
 
         state = {
             'tokens': [
@@ -213,7 +211,7 @@ class ModeratorServer(arcade.Window):
                 for player_id, player in self.game_state.players.items()
             ],
             'empath_info': {
-                str(player_id): player.red_neighbors_count  # Преобразуем ключи в строки для совместимости с JSON
+                str(player_id): player.red_neighbors_count
                 for player_id, player in self.game_state.players.items()
             },
             'day_phase': "Игра началась. Ждем, что игрок выберет кого казнить."
@@ -248,44 +246,33 @@ class ModeratorServer(arcade.Window):
         self.update_blue_neighbors()
         self.message_label.text = "Роли сгенерированы. Теперь нажмите 'Подтвердить роли'."
 
-    def on_submit_roles(self, event):
-        """Проверка ролей перед началом игры"""
-        red_count = sum(1 for role in self.roles.values() if role == "red")
-        demon_count = sum(1 for role in self.roles.values() if role == "demon")
-
-        if red_count < 3 or demon_count < 1:
-            self.message_label.text = "Ошибка: Должно быть хотя бы 3 красных и 1 демон."
-            return
-
-        self.message_label.text = "Роли подтверждены."
-
-        # Удаляем кнопку "Подтвердить роли"
-        self.manager.remove(self.submit_button_widget)
-
-        # Добавляем кнопку "Подтвердить информацию красных"
-        self.manager.add(self.submit_red_info_button_widget)
-
-        # Устанавливаем флаг, разрешающий клики по жетонам для изменения информации эмпатов
-        self.roles_confirmed = True
-
     def update_blue_neighbors(self):
         """Обновляем информацию для синих эмпатов"""
         for i in range(1, NUM_PLAYERS + 1):
             if self.roles[i] == "blue":
-                # Определяем соседей
                 left_neighbor = (i - 2) % NUM_PLAYERS + 1
                 right_neighbor = i % NUM_PLAYERS + 1
                 neighbors = [self.roles[left_neighbor], self.roles[right_neighbor]]
-
-                # Считаем количество красных и демонов среди соседей
                 red_count = neighbors.count("red") + neighbors.count("demon")
-                
-                # Обновляем количество красных соседей для эмпатов
                 self.game_state.players[i].red_neighbors_count = red_count
-            elif self.roles[i] in ["red", "demon"]:
-                # Для красных и демонов нет информации о соседях
-                self.game_state.players[i].red_neighbors_count = 0
-
+                self.blue_player_info[i] = red_count
+                
+                
+    def on_submit_roles(self, event):
+        """Проверка ролей перед началом игры"""
+        red_count = sum(1 for role in self.roles.values() if role == "red")
+        demon_count = sum(1 for role in self.roles.values() if role == "demon")
+        
+        if red_count < 3 or demon_count < 1:
+            self.message_label.text = "Ошибка: Должно быть хотя бы 3 красных и 1 демон."
+            return
+        self.message_label.text = "Роли подтверждены."
+        # Удаляем кнопку "Подтвердить роли"
+        self.manager.remove(self.submit_button_widget)
+        # Добавляем кнопку "Подтвердить информацию красных"
+        self.manager.add(self.submit_red_info_button_widget)
+        # Устанавливаем флаг, разрешающий клики по жетонам для изменения информации эмпатов
+        self.roles_confirmed = True
 
     def on_submit_red_info(self, event):
         """Обработка и отправка информации эмпатов"""
