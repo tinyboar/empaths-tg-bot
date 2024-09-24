@@ -11,7 +11,7 @@ from aiogram.types import (
     CallbackQuery
 )
 
-API_TOKEN = '7623094127:AAFNpbiGouhgdB49brc76rF9SBN5z7UbDYc'  # Замените на ваш токен
+API_TOKEN = '7623094127:AAFNpbiGouhgdB49brc76rF9SBN5z7UbDYc'
 
 logging.basicConfig(level=logging.INFO)
 
@@ -80,68 +80,107 @@ async def choose_players_count(message: Message):
 
 # Функция для отображения жетонов в круге
 async def display_tokens(message: Message, num_players: int):
-    """Отображаем круг жетонов с номерами игроков."""
-    token_display = "Игроки:\n"
-    
-    # Импровизация круга из эмодзи (будет зависеть от количества игроков)
+    """Отображаем круг жетонов с цветом, соответствующим роли игрока."""
+    def get_player_emoji(player_id):
+        role = game_state.players[player_id]['role']
+        if role == 'red':
+            return "🔴"
+        elif role == 'blue':
+            return "🔵"
+        else:
+            return "⚪"  # Используется, если роль еще не назначена
+
+    lines = []
     if num_players == 16:
-        token_display += (
-            "     🔵 1   🔵 2   🔵 3  🔵 4\n"
-            "🔵 5                                      🔵 6\n"
-            "🔵 7                                      🔵 8\n"
-            "🔵 9                                      🔵 10\n"
-            "🔵 11                                    🔵 12\n"
-            "     🔵 13  🔵 14  🔵 15 🔵 16"
-        )
+        positions = [
+            [1, 2, 3, 4],
+            [5, None, None, None, None, None, None, None, 6],
+            [7, None, None, None, None, None, None, None, 8],
+            [9, None, None, None, None, None, None, None, 10],
+            [11, None, None, None, None, None, None, None, 12],
+            [13, 14, 15, 16],
+        ]
     elif num_players == 14:
-        token_display += (
-            "        🔵 1   🔵 2   🔵 3   🔵 4\n"
-            "    🔵 5                   🔵 6\n"
-            "🔵 7                           🔵 8\n"
-            "🔵 9                           🔵 10\n"
-            "    🔵 11                 🔵 12\n"
-            "        🔵 13  🔵 14"
-        )
+        positions = [
+            [1, 2, 3, 4],
+            [5, None, None, None, None, 6],
+            [7, None, None, None, None, 8],
+            [9, None, None, None, None, 10],
+            [11, None, None, None, None, 12],
+            [13, 14],
+        ]
     elif num_players == 12:
-        token_display += (
-            "        🔵 1   🔵 2   🔵 3   🔵 4\n"
-            "    🔵 5                   🔵 6\n"
-            "🔵 7                           🔵 8\n"
-            "🔵 9                           🔵 10\n"
-            "    🔵 11                 🔵 12"
-        )
+        positions = [
+            [1, 2, 3, 4],
+            [5, None, None, None, None, 6],
+            [7, None, None, None, None, 8],
+            [9, None, None, None, None, 10],
+            [11, None, None, None, None, 12],
+        ]
     elif num_players == 10:
-        token_display += (
-            "        🔵 1   🔵 2   🔵 3   🔵 4\n"
-            "    🔵 5                   🔵 6\n"
-            "🔵 7                           🔵 8\n"
-            "    🔵 9                 🔵 10"
-        )
+        positions = [
+            [None, 1, 2, 3],
+            [4, None, None, None, 5],
+            [6, None, None, None, 7],
+            [None, 8, 9, 10],
+        ]
     elif num_players == 8:
-        token_display += (
-            "        🔵 1   🔵 2   🔵 3   🔵 4\n"
-            "    🔵 5                   🔵 6\n"
-            "🔵 7                           🔵 8"
-        )
+        positions = [
+            [1, 2, 3, 4],
+            [5, None, None, None, None, 6],
+            [7, None, None, None, None, 8],
+        ]
     elif num_players == 7:
-        token_display += (
-            "        🔵 1   🔵 2   🔵 3   🔵 4\n"
-            "    🔵 5                   🔵 6\n"
-            "        🔵 7"
-        )
+        positions = [
+            [1, 2, 3, 4],
+            [5, None, None, None, None, 6],
+            [7],
+        ]
     else:
-        # Если количество игроков меньше или не поддерживается
-        token_display = "Игроки: " + " ".join([f"🔵 {i}" for i in range(1, num_players + 1)])
-    
+        # Если количество игроков меньше или не поддерживается, отображаем простой список
+        token_display = "Игроки:\n" + " ".join([
+            f"{get_player_emoji(pid)} {pid}" for pid in range(1, num_players + 1)
+        ])
+        await message.answer(token_display)
+        return
+
+    # Строим строки отображения на основе позиций
+    for row in positions:
+        line = ""
+        for pid in row:
+            if pid is None:
+                line += "     "  # Пробелы для выравнивания
+            else:
+                emoji = get_player_emoji(pid)
+                line += f"{emoji} {pid}   "
+        lines.append(line.rstrip())  # Убираем лишние пробелы в конце строки
+
+    token_display = "\n".join(lines)
     await message.answer(token_display)
+
 
 # Функция для отправки клавиатуры с номерами игроков
 async def send_red_selection_keyboard(message: Message):
-    buttons = [InlineKeyboardButton(text=str(i), callback_data=f"select_red:{i}") for i in sorted(game_state.players.keys())]
-    # Разбиваем кнопки на строки по 5 штук для лучшего отображения
-    keyboard = InlineKeyboardMarkup(row_width=5).add(*buttons)
+    buttons = []
+    for player_id in sorted(game_state.players.keys()):
+        # Проверяем, выбран ли игрок
+        if game_state.players[player_id]['role'] == 'red':
+            button_text = f"✅ {player_id}"
+            callback_data = f"deselect_red:{player_id}"
+        else:
+            button_text = f"{player_id}"
+            callback_data = f"select_red:{player_id}"
+        
+        buttons.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
     
-    await message.answer("Выберите игрока, который будет 'красным':", reply_markup=keyboard)
+    # Разбиваем кнопки на группы по 5
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            buttons[i:i + 5] for i in range(0, len(buttons), 5)
+        ]
+    )
+    await message.answer("Выберите игроков, которые будут 'красными':", reply_markup=keyboard)
+
 
 # Обработчик для выбора роли игроков через callback
 @dp.callback_query(lambda c: c.data and c.data.startswith("select_red:"))
