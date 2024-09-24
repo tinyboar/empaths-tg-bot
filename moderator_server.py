@@ -137,33 +137,38 @@ class ModeratorServer(arcade.Window):
 
     async def process_message(self, websocket, data):
         action = data.get('action')
+        print(action)
+
         if action == 'authenticate':
             role = data.get('role')
+            print(f"Роль: {role}")
+            
             if role == 'moderator':
-                self.websocket = websocket
-                await websocket.send(json.dumps({'action': 'authenticated', 'role': 'moderator'}))
-                print("Модератор подключен.")
+                print(f"Модератор успешно подключен.")
+            
             elif role == 'player':
-                player = Player(websocket)
-                # Здесь можно реализовать логику присвоения уникального ID игроку
-                # Для простоты закрепим одного игрока с ID=1
-                self.game_state.players[1] = player
+                player_id = len(self.connected_players) + 1
+                self.connected_players[player_id] = websocket  # Сохраняем WebSocket игрока
+                self.game_state.players[player_id] = Player(websocket)
                 await websocket.send(json.dumps({'action': 'authenticated', 'role': 'player'}))
-                print("Игрок подключен.")
+                print(f"Игрок {player_id} подключен.")
+
         elif action == 'submit_empath_info':
             empath_info = data.get('empath_info', {})
             for player_id, info in empath_info.items():
                 if int(player_id) in self.game_state.players:
                     self.game_state.players[int(player_id)].red_neighbors_count = info
             print(f"Информация по эмпатам обновлена модератором: {empath_info}")
-            # После подтверждения эмпатов, добавляем кнопку "Начать игру"
             self.manager.add(self.start_game_button)
             self.message_label.text = "Информация по эмпатам подтверждена. Нажмите 'Начать игру'."
-            self.on_draw()  # Обновляем окно, чтобы кнопка появилась
+            self.on_draw()
+
         elif action == 'start_game':
+            print("0000000000000000")
             await self.assign_roles()
             await self.send_game_state_to_all_players()
             print("Игра начата модератором.")
+
 
     async def assign_roles(self):
         player_ids = list(self.game_state.players.keys())
@@ -184,6 +189,7 @@ class ModeratorServer(arcade.Window):
             self.token_colors[player_id] = ROLE_COLORS["blue"]
 
     async def send_game_state_to_all_players(self):
+        """Отправка состояния игры всем игрокам через их WebSocket"""
         state = {
             'tokens': [
                 {
@@ -194,16 +200,17 @@ class ModeratorServer(arcade.Window):
                 for player_id, player in self.game_state.players.items()
             ],
             'empath_info': {
-                player_id: player.red_neighbors_count
+                str(player_id): player.red_neighbors_count  # Преобразуем ключи в строки для совместимости с JSON
                 for player_id, player in self.game_state.players.items()
             },
-            'day_phase': "1 день, ждем что игрок выберет кого казнить"  # Добавляем фазу дня
+            'day_phase': "1 день, ждем что игрок выберет кого казнить"
         }
-        print(state)
-        for player in self.game_state.players.values():
-            if player.websocket:
-                await player.websocket.send(json.dumps({'action': 'start_game', 'state': state}))
 
+        print(f"Отправляемое состояние игры: {json.dumps(state)}")
+        for player_id, websocket in self.connected_players.items():
+            await websocket.send(json.dumps({'action': 'start_game', 'state': state}))
+            print(f"Сообщение 'start_game' отправлено для игрока {player_id}")
+            
     def on_generate_roles(self, event):
         """Генерация ролей и эмпат информации"""
         player_ids = list(range(1, NUM_PLAYERS + 1))
@@ -257,6 +264,7 @@ class ModeratorServer(arcade.Window):
     def on_submit_red_info(self, event):
         """Обработка и отправка информации эмпатов"""
         print("on_submit_red_info вызван")  # Проверка
+        
         # Проверяем, что у всех красных и демона назначена информация
         for pid in range(1, NUM_PLAYERS + 1):
             if self.roles[pid] in ["red", "demon"]:
@@ -271,6 +279,8 @@ class ModeratorServer(arcade.Window):
         }
 
         print(f"Информация по эмпатам: {empath_data}")
+        
+        # Отправляем данные игрокам
         self.send_message({'action': 'submit_empath_info', 'empath_info': empath_data})
 
         # Удаляем кнопки "Подтвердить информацию красных" и "Сгенерировать раскладку"
@@ -280,6 +290,8 @@ class ModeratorServer(arcade.Window):
         # Добавляем кнопку "Начать игру"
         self.manager.add(self.start_game_button)
         self.message_label.text = "Информация по эмпатам подтверждена. Нажмите 'Начать игру'."
+        self.on_draw()  # Обновляем интерфейс
+
 
     def on_reset_layout(self, event):
         # Удаляем кнопку "Начать раскладку заново"
@@ -302,20 +314,7 @@ class ModeratorServer(arcade.Window):
 
         # Сбрасываем флаг кликов
         self.roles_confirmed = False
-
-    def on_start_game(self, event):
-        """Отправляем сигнал для старта игры"""
-        self.message_label.text = "1 день, ждем что игрок выберет кого казнить."
-        self.send_message({'action': 'start_game'})
-
-        self.manager.remove(self.reset_layout_button_widget)
-        self.manager.remove(self.start_game_button)
-
-        self.manager._do_layout()
-        print("Интерфейс обновлен")
-
-        # Обновляем интерфейс на экране
-        self.on_draw()
+        
 
     def on_draw(self):
         """Отрисовываем жетоны игроков на круге и отображаем информацию об эмпатах"""
@@ -400,33 +399,6 @@ class ModeratorServer(arcade.Window):
         # Обновляем отображение жетонов
         self.on_draw()
 
-    def on_submit_red_info(self, event):
-        """Обработка и отправка информации эмпатов"""
-        print("on_submit_red_info вызван")  # Проверка
-        # Проверяем, что у всех красных и демона назначена информация
-        for pid in range(1, NUM_PLAYERS + 1):
-            if self.roles[pid] in ["red", "demon"]:
-                if self.red_empath_info[pid] not in RED_EMPATH_INFO_SEQUENCE:
-                    self.message_label.text = f"Ошибка: У игрока {pid} не назначена информация."
-                    return
-
-        empath_data = {
-            pid: self.red_empath_info[pid]
-            for pid in range(1, NUM_PLAYERS + 1)
-            if self.roles[pid] in ["red", "demon"]
-        }
-
-        print(f"Информация по эмпатам: {empath_data}")
-        self.send_message({'action': 'submit_empath_info', 'empath_info': empath_data})
-
-        # Удаляем кнопки "Подтвердить информацию красных" и "Сгенерировать раскладку"
-        self.manager.remove(self.submit_red_info_button_widget)
-        self.manager.remove(self.generate_button_widget)
-
-        # Добавляем кнопку "Начать игру"
-        self.manager.add(self.start_game_button)
-        self.message_label.text = "Информация по эмпатам подтверждена. Нажмите 'Начать игру'."
-
     def on_reset_layout(self, event):
         # Удаляем кнопку "Начать раскладку заново"
         self.manager.remove(self.reset_layout_button_widget)
@@ -452,7 +424,11 @@ class ModeratorServer(arcade.Window):
     def on_start_game(self, event):
         """Отправляем сигнал для старта игры"""
         self.message_label.text = "1 день, ждем что игрок выберет кого казнить."
-        self.send_message({'action': 'start_game'})
+        print("11111111111111111")
+
+        # Отправляем сигнал для начала игры напрямую через WebSocket
+        message = {'action': 'start_game'}
+        self.send_message(message)
 
         self.manager.remove(self.reset_layout_button_widget)
         self.manager.remove(self.start_game_button)
@@ -477,9 +453,18 @@ class ModeratorServer(arcade.Window):
             self.message_label.text = "Аутентификация успешна."
 
     def send_message(self, message):
-        """Отправляем сообщение через WebSocket"""
+        print(f"Попытка отправки сообщения: {message}")
+        print(f"WebSocket: {self.websocket}")
+        
         if self.websocket:
-            asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(message)), self.loop)
+            asyncio.run_coroutine_threadsafe(
+                self.websocket.send(json.dumps(message)),
+                self.loop
+            )
+            print(f"Сообщение отправлено: {message}")
+        else:
+            print("WebSocket не подключен.")
+
 
 
 if __name__ == "__main__":

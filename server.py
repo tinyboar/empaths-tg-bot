@@ -4,7 +4,7 @@ import websockets
 import json
 import random
 
-NUM_PLAYERS = 16
+NUM_PLAYERS = 5
 
 class Player:
     def __init__(self, websocket, player_id):
@@ -87,11 +87,26 @@ class GameServer:
             print(f"Информация по эмпатам обновлена модератором: {empath_info}")
         elif action == 'start_game':
             if websocket == self.game_state.moderator:
-                await self.assign_roles()
+                # Получаем информацию от модератора о ролях и эмпатах
+                state = data.get('state', {})
+                roles = state.get('roles', {})
+                empath_info = state.get('empath_info', {})
+                
+                print("00000000000000")
+                print("empath_info", empath_info)
+                # Обновляем роли игроков на сервере
+                for player_id, role in roles.items():
+                    self.game_state.players[int(player_id)].role = role
+
+                # Обновляем информацию эмпатов
+                for player_id, info in empath_info.items():
+                    self.game_state.players[int(player_id)].red_neighbors_count = info
+
                 await self.send_game_state_to_player(action='start_game')
                 print("Игра начата модератором. Отправляем состояние игры игроку.")
             else:
                 await websocket.send(json.dumps({'action': 'error', 'message': 'Только модератор может начинать игру.'}))
+
         elif action == 'kill_token':
             token_id = data.get('token_id')
             if token_id in self.game_state.players and self.game_state.players[token_id].alive:
@@ -140,22 +155,6 @@ class GameServer:
 
     def calculate_empath_info(self):
         pass
-        # """Рассчитываем количество красных соседей для синих эмпатов."""
-        # for player_id, player in self.game_state.players.items():
-        #     if player.role == 'blue' and player.alive:
-        #         # Рассчитываем соседей для каждого живого синего эмпата
-        #         left_neighbor_id = (player_id - 2) % NUM_PLAYERS + 1
-        #         right_neighbor_id = player_id % NUM_PLAYERS + 1
-        #         # Учитываем только живых соседей
-        #         neighbors = []
-        #         for neighbor_id in [left_neighbor_id, right_neighbor_id]:
-        #             neighbor = self.game_state.players[neighbor_id]
-        #             if neighbor.alive and neighbor.role in ['red', 'demon']:
-        #                 neighbors.append(neighbor.role)
-        #         # Считаем количество красных и демонов среди живых соседей
-        #         player.red_neighbors_count = len(neighbors)
-        #     else:
-        #         player.red_neighbors_count = 0  # Если эмпат мертв или не синий
 
     async def send_game_state_to_player(self, action='start_game'):
         state = {
