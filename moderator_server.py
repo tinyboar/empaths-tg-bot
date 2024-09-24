@@ -1,3 +1,4 @@
+# moderator_server.py
 import asyncio
 import websockets
 import arcade
@@ -49,6 +50,7 @@ class ModeratorServer(arcade.Window):
         self.websocket = None
         self.connected = False
         self.game_state = GameState()
+        self.connected_players = {}
 
         arcade.set_background_color(arcade.color.DARK_SLATE_BLUE)
         self.manager = arcade.gui.UIManager()
@@ -164,10 +166,10 @@ class ModeratorServer(arcade.Window):
             self.on_draw()
 
         elif action == 'start_game':
-            print("0000000000000000")
             await self.assign_roles()
-            await self.send_game_state_to_all_players()
+            await self.send_game_state_to_all_players()  # Отправляем состояние всем игрокам
             print("Игра начата модератором.")
+
 
 
     async def assign_roles(self):
@@ -178,24 +180,35 @@ class ModeratorServer(arcade.Window):
         red_players = random.sample(player_ids, num_reds)
         for player_id in red_players:
             self.game_state.players[player_id].role = 'red'
+            self.game_state.players[player_id].alive = True
             self.token_colors[player_id] = ROLE_COLORS["red"]
+            
         remaining_players = [pid for pid in player_ids if pid not in red_players]
         demon_player = random.choice(remaining_players)
         self.game_state.players[demon_player].role = 'demon'
+        self.game_state.players[demon_player].alive = True
         self.token_colors[demon_player] = ROLE_COLORS["demon"]
         remaining_players.remove(demon_player)
+
         for player_id in remaining_players:
             self.game_state.players[player_id].role = 'blue'
+            self.game_state.players[player_id].alive = True
             self.token_colors[player_id] = ROLE_COLORS["blue"]
+
+        print("Роли назначены.")
+
 
     async def send_game_state_to_all_players(self):
         """Отправка состояния игры всем игрокам через их WebSocket"""
+        # Обновляем информацию об эмпатах перед отправкой
+        self.update_blue_neighbors()
+
         state = {
             'tokens': [
                 {
                     'id': player_id,
                     'alive': player.alive,
-                    'role': player.role
+                    'role': self.roles[player_id]
                 }
                 for player_id, player in self.game_state.players.items()
             ],
@@ -203,14 +216,17 @@ class ModeratorServer(arcade.Window):
                 str(player_id): player.red_neighbors_count  # Преобразуем ключи в строки для совместимости с JSON
                 for player_id, player in self.game_state.players.items()
             },
-            'day_phase': "1 день, ждем что игрок выберет кого казнить"
+            'day_phase': "Игра началась. Ждем, что игрок выберет кого казнить."
         }
 
         print(f"Отправляемое состояние игры: {json.dumps(state)}")
+        
+        # Отправляем состояние каждому подключенному игроку
         for player_id, websocket in self.connected_players.items():
             await websocket.send(json.dumps({'action': 'start_game', 'state': state}))
-            print(f"Сообщение 'start_game' отправлено для игрока {player_id}")
-            
+            print(f"Сообщение 'start_game' отправлено игроку {player_id}")
+
+                
     def on_generate_roles(self, event):
         """Генерация ролей и эмпат информации"""
         player_ids = list(range(1, NUM_PLAYERS + 1))
@@ -256,10 +272,20 @@ class ModeratorServer(arcade.Window):
         """Обновляем информацию для синих эмпатов"""
         for i in range(1, NUM_PLAYERS + 1):
             if self.roles[i] == "blue":
+                # Определяем соседей
                 left_neighbor = (i - 2) % NUM_PLAYERS + 1
                 right_neighbor = i % NUM_PLAYERS + 1
                 neighbors = [self.roles[left_neighbor], self.roles[right_neighbor]]
-                self.blue_player_info[i] = neighbors.count("red") + neighbors.count("demon")
+
+                # Считаем количество красных и демонов среди соседей
+                red_count = neighbors.count("red") + neighbors.count("demon")
+                
+                # Обновляем количество красных соседей для эмпатов
+                self.game_state.players[i].red_neighbors_count = red_count
+            elif self.roles[i] in ["red", "demon"]:
+                # Для красных и демонов нет информации о соседях
+                self.game_state.players[i].red_neighbors_count = 0
+
 
     def on_submit_red_info(self, event):
         """Обработка и отправка информации эмпатов"""
@@ -420,15 +446,14 @@ class ModeratorServer(arcade.Window):
 
         # Сбрасываем флаг кликов
         self.roles_confirmed = False
-
+        
     def on_start_game(self, event):
         """Отправляем сигнал для старта игры"""
         self.message_label.text = "1 день, ждем что игрок выберет кого казнить."
         print("11111111111111111")
 
-        # Отправляем сигнал для начала игры напрямую через WebSocket
-        message = {'action': 'start_game'}
-        self.send_message(message)
+        # Отправляем состояние игры напрямую через WebSocket
+        asyncio.run_coroutine_threadsafe(self.send_game_state_to_all_players(), self.loop)
 
         self.manager.remove(self.reset_layout_button_widget)
         self.manager.remove(self.start_game_button)
@@ -438,6 +463,7 @@ class ModeratorServer(arcade.Window):
 
         # Обновляем интерфейс на экране
         self.on_draw()
+
 
     def on_update(self, delta_time):
         while not self.message_queue.empty():
@@ -454,16 +480,17 @@ class ModeratorServer(arcade.Window):
 
     def send_message(self, message):
         print(f"Попытка отправки сообщения: {message}")
-        print(f"WebSocket: {self.websocket}")
         
-        if self.websocket:
-            asyncio.run_coroutine_threadsafe(
-                self.websocket.send(json.dumps(message)),
-                self.loop
-            )
-            print(f"Сообщение отправлено: {message}")
-        else:
-            print("WebSocket не подключен.")
+        for player_id, websocket in self.connected_players.items():
+            if websocket:
+                asyncio.run_coroutine_threadsafe(
+                    websocket.send(json.dumps(message)),
+                    self.loop
+                )
+                print(f"Сообщение отправлено игроку {player_id}: {message}")
+            else:
+                print(f"WebSocket для игрока {player_id} не подключен.")
+
 
 
 
