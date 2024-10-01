@@ -1,0 +1,6 @@
+# .gitignore
+
+.env
+users.db
+__pycache__/
+*.pyc
