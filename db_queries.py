@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     alignment TEXT CHECK(alignment IN ('blue', 'red')),
     character TEXT CHECK(character IN ('townfolk', 'minion', 'demon')),
-    red_neighbors INTEGER DEFAULT 0
+    red_neighbors INTEGER DEFAULT 0,
+    alive BOOLEAN NOT NULL DEFAULT 1
 )
 '''
 

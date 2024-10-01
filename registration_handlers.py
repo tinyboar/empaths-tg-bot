@@ -59,7 +59,7 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text("Вы успешно зарегистрированы как модератор!")
         logger.info(f"Пользователь {userid} зарегистрирован как модератор.")
 
-        await update.message.reply_text("Введите имя пользователя, с которым вы собираетесь играть:")
+        await update.message.reply_text("Введите имя пользователя, с которым вы собираетесь играть(например @username):")
         return GET_USERNAME
     else:
         await update.message.reply_text(

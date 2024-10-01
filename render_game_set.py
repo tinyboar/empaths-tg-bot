@@ -26,7 +26,8 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
     """
     Показывает настройки игры, включая визуализацию карты жетонов.
     Если moderator=True, отображает реальные цвета жетонов.
-    Если moderator=False, отображает все жетоны одного цвета.
+    Если moderator=False, отображает все живые жетоны одного цвета.
+    Мертвые жетоны отображаются серым цветом без значения red_neighbors.
     """
     game_set = get_latest_game_set()
 
@@ -58,7 +59,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         # Сортируем жетоны по id для соответствия порядку
         tokens_data.sort(key=lambda x: x['id'])  # x['id'] это id жетона
 
-        # Получаем список цветов жетонов и информацию о демоне
+        # Получаем список цветов жетонов и информацию о живости
         tokens_colors = []
         red_neighbors_list = []
         for token in tokens_data:
@@ -66,20 +67,32 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
             alignment = token['alignment']
             character = token['character']
             red_neighbors = token['red_neighbors']
+            alive = token.get('alive', True)  # Предполагаем, что жетон жив, если поле отсутствует
 
-            red_neighbors_list.append(red_neighbors)
-
-            if moderator:
-                if character == 'demon':
-                    tokens_colors.append('purple')  # Демон отображается фиолетовым цветом
-                elif alignment == 'red':
-                    tokens_colors.append('red')  # Красные жетоны
-                elif alignment == 'blue':
-                    tokens_colors.append('lightblue')  # Синие жетоны отображаются светло-синим цветом
-                else:
-                    tokens_colors.append('grey')  # Неизвестные жетоны (на случай ошибки)
+            if not alive:
+                # Мертвый жетон: серый цвет и отсутствие red_neighbors
+                tokens_colors.append('grey')
+                red_neighbors_list.append(None)
             else:
-                tokens_colors.append('lightblue')  # Все жетоны одного цвета для игроков
+                if moderator:
+                    # Модератор видит реальные цвета
+                    if character == 'demon':
+                        tokens_colors.append('purple')  # Демон отображается фиолетовым цветом
+                    elif alignment == 'red':
+                        tokens_colors.append('red')  # Красные жетоны
+                    elif alignment == 'blue':
+                        tokens_colors.append('lightblue')  # Синие жетоны отображаются светло-синим цветом
+                    else:
+                        tokens_colors.append('grey')  # Неизвестные жетоны (на случай ошибки)
+                else:
+                    # Игрок видит все живые жетоны одного цвета
+                    tokens_colors.append('lightblue')  # Например, светло-синий для всех живых жетонов
+
+                # Добавляем red_neighbors только если жетон жив и показываем его модератору
+                if alive:
+                    red_neighbors_list.append(red_neighbors)
+                else:
+                    red_neighbors_list.append(None)
 
         # Рассчитываем позиции жетонов по кругу
         image_size = 500  # Размер изображения
@@ -137,16 +150,14 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
             number_y = y - number_height / 2
             draw.text((number_x, number_y), token_number, fill='black', font=font)
 
-            # Значение red_neighbors справа от жетона
-            if i < len(red_neighbors_list):
+            # Значение red_neighbors справа от жетона (только для живых жетонов и модераторов)
+            if red_neighbors_list[i] is not None:
                 red_neighbors = red_neighbors_list[i]
-            else:
-                red_neighbors = 0  # По умолчанию 0, если данных недостаточно
-            red_neighbors_text = str(red_neighbors)
-            rn_width, rn_height = draw.textsize(red_neighbors_text, font=font)
-            rn_x = x + token_radius + 5  # 5 пикселей отступ
-            rn_y = y - rn_height / 2
-            draw.text((rn_x, rn_y), red_neighbors_text, fill='black', font=font)
+                red_neighbors_text = str(red_neighbors)
+                rn_width, rn_height = draw.textsize(red_neighbors_text, font=font)
+                rn_x = x + token_radius + 5  # 5 пикселей отступ
+                rn_y = y - rn_height / 2
+                draw.text((rn_x, rn_y), red_neighbors_text, fill='black', font=font)
 
         # Сохраняем изображение в байтовый поток
         image_bytes = io.BytesIO()
@@ -166,5 +177,9 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         # Отправляем информацию и изображение
         await update.message.reply_text(game_info, parse_mode='MarkdownV2')
         await update.message.reply_photo(photo=image_bytes, caption="Карта распределения жетонов")
-
-
+        logger.info("Показаны настройки игры с картой жетонов.")
+    else:
+        message = "Настройки игры не найдены."
+        escaped_message = escape_markdown_v2(message)
+        await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+        logger.warning("Настройки игры не найдены.")
