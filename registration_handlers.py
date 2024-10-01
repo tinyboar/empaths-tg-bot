@@ -72,7 +72,20 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """
     Обрабатывает ввод имени пользователя для игры и передаёт управление в set_up_game.
     """
-    player_username = update.message.text.strip()
+    player_username_input = update.message.text.strip()
+    # Удаляем ведущий '@', если он есть
+    player_username = player_username_input.lstrip('@')
+    
+    # Проверка, что имя пользователя не пустое
+    if not player_username:
+        await update.message.reply_text("Имя пользователя не может быть пустым. Пожалуйста, введите имя пользователя:")
+        return GET_USERNAME
+    
+    # Дополнительная валидация имени пользователя (по желанию)
+    if not player_username.isalnum():
+        await update.message.reply_text("Имя пользователя должно содержать только буквы и цифры. Пожалуйста, введите корректное имя пользователя:")
+        return GET_USERNAME
+    
     game_set = context.user_data.setdefault('game_set', {})
     game_set['player_username'] = player_username
     logger.info(f"Получено имя пользователя для игры: {player_username}")
