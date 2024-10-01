@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from database import add_user
 import logging
 from constants import HANDLE_PASSWORD, GET_USERNAME, SET_UP_GAME
+from game_set_handlers import set_up_game
 
 # Получение конфигурационных данных из переменных окружения
 MODERATOR_PASSWORD = os.getenv("MODERATOR_PASSWORD", "123")
@@ -65,8 +66,14 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     Обрабатывает ввод имени пользователя для игры и передаёт управление в set_up_game.
     """
     player_username = update.message.text.strip()
-    context.user_data['game_set'] = {'player_username': player_username}
-    return SET_UP_GAME
+    game_set = context.user_data.setdefault('game_set', {})
+    game_set['player_username'] = player_username
+    logger.info(f"Получено имя пользователя для игры: {player_username}")
+    await update.message.reply_text("Имя пользователя сохранено. Теперь настройте игру.")
+    
+    # Вызываем set_up_game непосредственно и возвращаем его состояние
+    return await set_up_game(update, context)
+
 
 async def skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """

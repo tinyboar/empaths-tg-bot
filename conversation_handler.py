@@ -1,5 +1,3 @@
-# conversation_handler.py
-
 from telegram.ext import (
     ConversationHandler,
     CommandHandler,
@@ -19,7 +17,7 @@ from game_set_handlers import (
     get_red_count,
     get_red_token_number,
     get_demon_token_number,
-    get_red_token_red_neighbors  # Импортируем новую функцию
+    get_red_token_red_neighbors
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -29,7 +27,7 @@ from constants import (
     GET_RED_COUNT,
     GET_RED_TOKEN_NUMBER,
     GET_DEMON_TOKEN_NUMBER,
-    GET_RED_TOKEN_RED_NEIGHBORS  # Новое состояние
+    GET_RED_TOKEN_RED_NEIGHBORS
 )
 
 conv_handler = ConversationHandler(
