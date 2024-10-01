@@ -3,10 +3,9 @@
 import logging
 from database import get_user_by_username, get_moderators, update_user_on_game
 
-# Добавляем недостающие импорты
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from constants import CONFIRM_INVITE
+from constants import CONFIRM_INVITE, EXECUTE_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -56,28 +55,38 @@ async def invite_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     player_username = context.user_data['game_set']['player_username']
     moderator_userid = update.effective_user.id  # ID модератора
 
-    # Сохраняем информацию о игроке в context.user_data для дальнейшего использования
     context.user_data['player_username'] = player_username
-
-    # Отправляем сообщение модератору
-    message = f"Пригласить @{player_username}? Отправьте /start, чтобы начать настройку заново. Или отправьте 1, чтобы отправить игроку раскладку жетонов"
+    message = (
+        f"Пригласить @{player_username}? Отправьте /start, чтобы начать настройку заново. "
+        f"Или отправьте 1, чтобы отправить игроку раскладку жетонов"
+    )
     await update.message.reply_text(message)
 
-    return CONFIRM_INVITE  # Переходим к новому состоянию
+    return CONFIRM_INVITE
 
 async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Обрабатывает ответ модератора на предложение пригласить игрока.
     """
     text = update.message.text.strip()
+    user = update.effective_user
+    user_id = user.id
+    username = user.username or user.first_name or "Unknown"
+
+    # Проверяем, является ли пользователь модератором
+    moderator = get_user_by_username(username)
+    if not moderator or not moderator.get('moderator', False):
+        await update.message.reply_text("Только модератор может подтвердить приглашение.")
+        return ConversationHandler.END
+
     if text == '1':
-        # Получаем username игрока и ID модератора
+        # Получаем username игрока
         player_username = context.user_data.get('player_username')
         if not player_username:
-            await update.message.reply_text("Имя пользователя игрока не найдено. Пожалуйста, начните настройку заново с помощью /start.")
+            await update.message.reply_text(
+                "Имя пользователя игрока не найдено. Пожалуйста, начните настройку заново с помощью /start."
+            )
             return ConversationHandler.END
-
-        moderator_userid = update.effective_user.id  # ID модератора
 
         # Получаем информацию об игроке
         player = get_user_by_username(player_username)
@@ -89,20 +98,33 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         player_userid = player['id']
 
         # Обновляем поле on_game у модератора и игрока
-        update_user_on_game(moderator_userid, True)
-        update_user_on_game(player_userid, True)
-        logger.info(f"on_game обновлено для модератора {moderator_userid} и игрока {player_userid}")
+        update_user_on_game(user_id, True)        # ID модератора
+        update_user_on_game(player_userid, True)  # ID игрока
+        logger.info(f"on_game обновлено для модератора {user_id} и игрока {player_userid}")
 
         # Отправляем сообщение игроку
-        message = "Модератор настроил игру. Вы готовы начать? Отправьте любое сообщение, чтобы получить раскладку жетонов"
+        message = (
+            "Модератор настроил игру. Вы готовы начать? "
+            "Отправьте любое сообщение, чтобы получить раскладку жетонов"
+        )
         try:
             await context.bot.send_message(chat_id=player_userid, text=message)
             logger.info(f"Игроку @{player_username} ({player_userid}) отправлено приглашение начать игру.")
             await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
+
+            # Устанавливаем флаг ожидания ответа от игрока в bot_data
+            context.bot_data[player_userid] = {'expected_response': True}
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение игроку @{player_username} ({player_userid}): {e}")
             await update.message.reply_text(f"Не удалось отправить сообщение игроку @{player_username}.")
+
+        # Опционально: сохраняем состояние в chat_data, если требуется
+        context.chat_data['expected_player'] = player_userid
+        context.chat_data['expected_state'] = EXECUTE_TOKEN
+
         return ConversationHandler.END
     else:
-        await update.message.reply_text("Неверный ввод. Пожалуйста, отправьте 1, чтобы пригласить игрока, или /start, чтобы начать настройку заново.")
-        return CONFIRM_INVITE  # Остаёмся в текущем состоянии
+        await update.message.reply_text(
+            "Неверный ввод. Пожалуйста, отправьте 1, чтобы пригласить игрока, или /start, чтобы начать настройку заново."
+        )
+        return CONFIRM_INVITE

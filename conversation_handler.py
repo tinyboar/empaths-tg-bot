@@ -19,10 +19,13 @@ from game_set_handlers import (
     get_red_count,
     get_red_token_number,
     get_demon_token_number,
-    get_red_token_red_neighbors
+    get_red_token_red_neighbors,
 )
 from player_manager import (
-    confirm_invite  # Импортируем новый обработчик
+    confirm_invite,
+)
+from game_process_handlers import (
+    execute_token,
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -33,7 +36,8 @@ from constants import (
     GET_RED_TOKEN_NUMBER,
     GET_DEMON_TOKEN_NUMBER,
     GET_RED_TOKEN_RED_NEIGHBORS,
-    CONFIRM_INVITE
+    CONFIRM_INVITE,
+    EXECUTE_TOKEN
 )
 
 conv_handler = ConversationHandler(
@@ -66,6 +70,9 @@ conv_handler = ConversationHandler(
         ],
         CONFIRM_INVITE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_invite)
+        ],
+        EXECUTE_TOKEN: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],

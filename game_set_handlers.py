@@ -126,7 +126,7 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(f"Выберите {ordinal.get(index, f'{index}-й')} из {red_count} красных жетонов:")
         return GET_RED_TOKEN_NUMBER
     else:
-        await update.message.reply_text("Выберите номер жетона, который будет демоном из выбранных красных жетонов:")
+        await update.message.reply_text("Выберите номер жетона, который будет **демоном** из выбранных красных жетонов:")
         return GET_DEMON_TOKEN_NUMBER
 
 
@@ -150,7 +150,7 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
     from database import update_token_character
     update_token_character(token_number, 'demon')
     logger.info(f"Жетон номер {token_number} помечен как демон.")
-    await update.message.reply_text(f"Жетон номер {token_number} теперь является демоном.")
+    await update.message.reply_text(f"Жетон номер {token_number} теперь является **демоном**.")
 
     # Вызываем функцию для подсчёта красных соседей у синих жетонов
     count_red_neighbors_of_blue_tokens()
