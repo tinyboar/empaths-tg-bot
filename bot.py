@@ -8,11 +8,12 @@ from telegram.ext import (
     ApplicationBuilder, 
     MessageHandler, 
     filters, 
-    CommandHandler
+    CommandHandler, 
+    ConversationHandler
 )
 from database import init_db
 from conversation_handler import conv_handler
-from game_process_handlers import check_player_response
+from game_process_handlers import check_player_response, execute_token
 from game_set_handlers import show_setup_handler
 from telegram.ext import ContextTypes
 from telegram import Update
@@ -45,6 +46,13 @@ def main():
         check_player_response
     )
     application.add_handler(player_response_handler)
+
+    # Добавляем обработчик для execute_token
+    execute_token_handler = MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        execute_token
+    )
+    application.add_handler(execute_token_handler)
 
     # Добавляем обработчик ошибок
     application.add_error_handler(error_handler)

@@ -113,14 +113,10 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
 
             # Устанавливаем флаг ожидания ответа от игрока в bot_data
-            context.bot_data[player_userid] = {'expected_response': True}
+            context.bot_data[player_userid] = {'expected_execute_token': True}
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение игроку @{player_username} ({player_userid}): {e}")
             await update.message.reply_text(f"Не удалось отправить сообщение игроку @{player_username}.")
-
-        # Опционально: сохраняем состояние в chat_data, если требуется
-        context.chat_data['expected_player'] = player_userid
-        context.chat_data['expected_state'] = EXECUTE_TOKEN
 
         return ConversationHandler.END
     else:
