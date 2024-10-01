@@ -12,7 +12,7 @@ from database import (
 )
 import logging
 from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
-from render_game_set import show_start_game_set
+from render_game_set import show_game_set
 from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 from player_manager import invite_player
 
@@ -71,7 +71,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     logger.info(f"Создано {tokens_count} жетонов в таблице tokens.")
 
     # Показываем начальные настройки игры с серыми жетонами
-    await show_start_game_set(update, context)
+    await show_game_set(update, context, moderator=True)
 
     # Инициализируем данные для ввода номеров красных жетонов
     context.user_data['red_count'] = red_count
@@ -151,9 +151,7 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
     count_red_neighbors_of_blue_tokens()
     logger.info("Подсчёт красных соседей для синих жетонов завершён.")
 
-    # Вызываем show_start_game_set_with_red_neighbors
-    from render_game_set import show_start_game_set_with_red_neighbors
-    await show_start_game_set_with_red_neighbors(update, context)
+    await show_game_set(update, context, moderator=True)
 
     # Инициализируем данные для ввода red_neighbors для красных жетонов
     context.user_data['red_tokens'] = selected_red_tokens
@@ -194,8 +192,7 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
         await update.message.reply_text(f"Введите количество соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS
     else:
-        from render_game_set import show_start_game_set_with_red_neighbors
-        await show_start_game_set_with_red_neighbors(update, context)
+        await show_game_set(update, context, moderator=True)
         return await invite_player(update, context)
 
 
@@ -203,6 +200,4 @@ async def finalize_red_tokens_selection(update: Update, context: ContextTypes.DE
     """
     Отображает обновленную карту жетонов после выбора всех красных жетонов.
     """
-    # Показываем обновленную карту жетонов
-    from render_game_set import show_start_game_set
-    await show_start_game_set(update, context)
+    await show_game_set(update, context, moderator=True)

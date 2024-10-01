@@ -15,13 +15,17 @@ def count_red_neighbors_of_blue_tokens():
     tokens = get_all_tokens()
     
     # Создаем словарь для удобного доступа к жетонам по их id
-    tokens_dict = {token[0]: {'alignment': token[1], 'character': token[2], 'red_neighbors': token[3]} for token in tokens}
+    tokens_dict = {token['id']: {'alignment': token['alignment'], 'character': token['character'], 'red_neighbors': token['red_neighbors']} for token in tokens}
     
     tokens_count = len(tokens)
     
     # Обходим каждый жетон
     for token_id in range(1, tokens_count + 1):
-        token = tokens_dict[token_id]
+        token = tokens_dict.get(token_id)
+        if not token:
+            logger.warning(f"Жетон с id={token_id} не найден.")
+            continue
+
         if token['alignment'] == 'blue':
             # Для синего жетона считаем количество красных соседей
             red_neighbors = 0
@@ -30,13 +34,13 @@ def count_red_neighbors_of_blue_tokens():
             left_neighbor_id = token_id - 1 if token_id > 1 else tokens_count
             right_neighbor_id = token_id + 1 if token_id < tokens_count else 1
             
-            left_neighbor = tokens_dict[left_neighbor_id]
-            right_neighbor = tokens_dict[right_neighbor_id]
+            left_neighbor = tokens_dict.get(left_neighbor_id)
+            right_neighbor = tokens_dict.get(right_neighbor_id)
             
             # Проверяем цвет соседей
-            if left_neighbor['alignment'] == 'red':
+            if left_neighbor and left_neighbor['alignment'] == 'red':
                 red_neighbors += 1
-            if right_neighbor['alignment'] == 'red':
+            if right_neighbor and right_neighbor['alignment'] == 'red':
                 red_neighbors += 1
             
             # Обновляем поле red_neighbors в базе данных

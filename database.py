@@ -135,14 +135,15 @@ def add_tokens(tokens_list, db_path='empaths.db'):
 
 def get_all_tokens(db_path='empaths.db'):
     """
-    Получает все жетоны из таблицы tokens.
+    Возвращает список всех жетонов из таблицы tokens в виде словарей.
     """
     conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute(SELECT_ALL_TOKENS)
+    cursor.execute('SELECT * FROM tokens')
     tokens = cursor.fetchall()
     conn.close()
-    return tokens
+    return [dict(token) for token in tokens]
 
 def update_token(token_id, alignment, character, red_neighbors, db_path='empaths.db'):
     """
@@ -249,3 +250,5 @@ def update_user_on_game(userid, on_game, db_path='empaths.db'):
     cursor.execute('UPDATE users SET on_game = ? WHERE id = ?', (int(on_game), userid))
     conn.commit()
     conn.close()
+
+

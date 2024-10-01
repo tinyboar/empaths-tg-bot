@@ -3,7 +3,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from database import get_user_by_id, update_user_on_game
-from render_game_set import show_start_game_set
+from render_game_set import show_game_set
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     username = user.username or user.first_name or "Unknown"
 
     # Отправляем игроку карту жетонов
-    await show_start_game_set(update, context)
+    await show_game_set(update, context, moderator=False)
     logger.info(f"Игроку {username} ({userid}) отправлена карта жетонов.")
 
     # Обновляем поле on_game у игрока
