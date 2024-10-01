@@ -10,7 +10,9 @@ from database import (
     update_token_alignment,
     update_token_character,
     get_latest_game_set,
-    get_user_by_id
+    get_user_by_id,
+    update_token_red_neighbors
+    
 )
 import logging
 from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
@@ -182,7 +184,6 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
     red_neighbors = int(red_neighbors_text)
 
     # Обновляем поле red_neighbors в базе данных для текущего красного жетона
-    from database import update_token_red_neighbors
     update_token_red_neighbors(token_number, red_neighbors)
     logger.info(f"Жетон {token_number}: количество соседей обновлено до {red_neighbors}")
 
@@ -209,7 +210,6 @@ async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = user.id
     username = user.username or user.first_name or "Unknown"
 
-    # Получаем текущие настройки игры
     game_set = get_latest_game_set()
 
     if not game_set:
@@ -217,10 +217,7 @@ async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.info(f"Пользователь {username} ({user_id}) попытался вызвать /showsetup, но игра не начата.")
         return
 
-    # Получаем player_id из настроек игры
     player_id = game_set.get('player_id')
-
-    # Получаем информацию о пользователе из базы данных
     user_data = get_user_by_id(user_id)
 
     if not user_data:
@@ -229,17 +226,15 @@ async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     is_moderator = user_data.get('moderator', False)
+    count_red_neighbors_of_blue_tokens()
 
     if is_moderator:
-        # Вызов сделал модератор
         await show_game_set(update, context, moderator=True)
         logger.info(f"Модератор {username} ({user_id}) вызвал /showsetup.")
     else:
-        # Проверяем, является ли пользователь игроком
         if user_id == player_id:
             await show_game_set(update, context, moderator=False)
             logger.info(f"Игрок {username} ({user_id}) вызвал /showsetup.")
         else:
             await update.message.reply_text("У вас нет прав использовать эту команду.")
             logger.warning(f"Пользователь {username} ({user_id}) попытался вызвать /showsetup без прав.")
-
