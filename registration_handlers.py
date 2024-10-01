@@ -26,10 +26,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Обработчик команды /start.
     """
+    context.user_data.clear()
+
     user = update.effective_user
     username, userid = extract_user_info(user)
 
-    # Сохраняем пользователя в базе данных
     add_user(username, userid)
 
     await update.message.reply_text(
@@ -38,6 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
 
     return HANDLE_PASSWORD
+
 
 async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """

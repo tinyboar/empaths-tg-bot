@@ -60,4 +60,5 @@ conv_handler = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
+    allow_reentry=True
 )
