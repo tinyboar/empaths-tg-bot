@@ -15,7 +15,6 @@ from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET
 from render_game_set import show_start_game_set
 from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 
-# Настройка логирования
 logger = logging.getLogger(__name__)
 
 async def set_up_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -104,13 +103,11 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(f"Жетон номер {token_number} уже выбран. Пожалуйста, выберите другой номер.")
         return GET_RED_TOKEN_NUMBER
 
-    # Обновляем жетон в базе данных, помечая его как красный
     update_token_alignment(token_number, 'red')
     update_token_character(token_number, 'minion')
     selected_red_tokens.append(token_number)
     logger.info(f"Жетон номер {token_number} помечен как красный.")
 
-    # Уведомляем модератора
     await update.message.reply_text(f"Жетон номер {token_number} стал красным игроком.")
 
     red_count = context.user_data['red_count']
@@ -122,10 +119,8 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(f"Выберите {ordinal.get(index, f'{index}-й')} из {red_count} красных жетонов:")
         return GET_RED_TOKEN_NUMBER
     else:
-        # Все красные жетоны выбраны, просим выбрать демона
         await update.message.reply_text("Выберите номер жетона, который будет демоном из выбранных красных жетонов:")
-        return GET_DEMON_TOKEN_NUMBER  # Переходим к новому состоянию
-
+        return GET_DEMON_TOKEN_NUMBER
 
 
 async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -148,8 +143,6 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
     from database import update_token_character
     update_token_character(token_number, 'demon')
     logger.info(f"Жетон номер {token_number} помечен как демон.")
-
-    # Уведомляем модератора
     await update.message.reply_text(f"Жетон номер {token_number} теперь является демоном.")
 
     # Вызываем функцию для подсчёта красных соседей у синих жетонов
