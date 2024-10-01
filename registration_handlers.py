@@ -32,7 +32,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     username, userid = extract_user_info(user)
 
-    add_user(username, userid)
+    # Сохраняем пользователя в базе данных и получаем флаг is_new_user
+    is_new_user = add_user(username, userid)
+    context.user_data['is_new_user'] = is_new_user
 
     await update.message.reply_text(
         f"Привет, {username}! Ты успешно зарегистрирован.\n\n"
@@ -82,8 +84,19 @@ async def skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Обрабатывает команду /skip, позволяя пользователю пропустить ввод пароля модератора.
     """
-    await update.message.reply_text("Вы зарегистрированы как обычный пользователь.")
+    user = update.effective_user
+    username, userid = extract_user_info(user)
+    is_new_user = context.user_data.get('is_new_user', False)
+
+    await update.message.reply_text("Вы зарегистрированы как обычный пользователь. Модератор настроит игру и пригласит вас")
+
+    if is_new_user:
+        from player_manager import player_registration_notice
+        await player_registration_notice(context, username, userid)
+        logger.info(f"Новый игрок зарегистрирован: {username} ({userid})")
+
     return ConversationHandler.END
+
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """

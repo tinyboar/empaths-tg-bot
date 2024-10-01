@@ -30,22 +30,39 @@ def init_db(db_path='empaths.db'):
     conn.commit()
     conn.close()
 
-def add_user(username, userid, moderator=False, on_game=False, db_path='empaths.db'):
+def add_user(username, userid, moderator=False, db_path='empaths.db'):
     """
-    Добавляет нового пользователя или обновляет существующего.
+    Добавляет нового пользователя в базу данных. Если пользователь уже существует, обновляет его информацию.
+    Возвращает True, если пользователь новый, и False, если уже существовал.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    try:
-        cursor.execute(INSERT_USER, (username, userid, moderator, on_game))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        # Если пользователь уже существует, обновим его данные
-        cursor.execute(UPDATE_USER_USERNAME, (username, userid))
-        cursor.execute(UPDATE_USER_AS_MODERATOR, (moderator, userid))
-        conn.commit()
-    finally:
-        conn.close()
+    cursor.execute('SELECT * FROM users WHERE id = ?', (userid,))
+    user = cursor.fetchone()
+    if user:
+        # Пользователь существует, обновляем информацию
+        cursor.execute('UPDATE users SET username = ?, moderator = ? WHERE id = ?', (username, int(moderator), userid))
+        is_new_user = False
+    else:
+        # Новый пользователь, добавляем в базу данных
+        cursor.execute('INSERT INTO users (id, username, moderator) VALUES (?, ?, ?)', (userid, username, int(moderator)))
+        is_new_user = True
+    conn.commit()
+    conn.close()
+    return is_new_user
+
+def get_moderators(db_path='empaths.db'):
+    """
+    Возвращает список модераторов из базы данных.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username FROM users WHERE moderator = 1')
+    moderators = cursor.fetchall()
+    conn.close()
+    # Преобразуем в список словарей
+    return [{'id': row[0], 'username': row[1]} for row in moderators]
+
 
 def is_user_moderator(userid, db_path='empaths.db'):
     """
