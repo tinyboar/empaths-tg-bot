@@ -201,3 +201,51 @@ def update_token_red_neighbors(token_id, red_neighbors, db_path='empaths.db'):
     conn.close()
     logger.info(f"Жетон с id={token_id} обновлен. red_neighbors={red_neighbors}")
 
+
+def get_user_by_username(username, db_path='empaths.db'):
+    """
+    Получает информацию о пользователе по username.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, moderator, on_game FROM users WHERE username = ?', (username,))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        return {
+            'id': user[0],
+            'username': user[1],
+            'moderator': bool(user[2]),
+            'on_game': bool(user[3])
+        }
+    else:
+        return None
+
+def get_user_by_id(userid, db_path='empaths.db'):
+    """
+    Получает информацию о пользователе по ID.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, moderator, on_game FROM users WHERE id = ?', (userid,))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        return {
+            'id': user[0],
+            'username': user[1],
+            'moderator': bool(user[2]),
+            'on_game': bool(user[3])
+        }
+    else:
+        return None
+
+def update_user_on_game(userid, on_game, db_path='empaths.db'):
+    """
+    Обновляет поле on_game у пользователя.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET on_game = ? WHERE id = ?', (int(on_game), userid))
+    conn.commit()
+    conn.close()

@@ -4,12 +4,12 @@ import logging
 import os
 from dotenv import load_dotenv
 load_dotenv() 
-from telegram.ext import ApplicationBuilder
+from telegram.ext import ApplicationBuilder, MessageHandler, filters
 from database import init_db
 from conversation_handler import conv_handler
+from game_process_handlers import check_player_response
 from telegram.ext import ContextTypes
 from telegram import Update
-
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
@@ -29,6 +29,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 def main():
     init_db()
     application = ApplicationBuilder().token(TOKEN).build()
+    # Добавляем обработчик для проверки ответа игрока перед основным обработчиком
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_player_response), group=-1)
     application.add_handler(conv_handler)
     application.add_error_handler(error_handler)
     logger.info("Бот запускается...")

@@ -14,6 +14,7 @@ import logging
 from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
 from render_game_set import show_start_game_set
 from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
+from player_manager import invite_player
 
 logger = logging.getLogger(__name__)
 
@@ -193,10 +194,9 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
         await update.message.reply_text(f"Введите количество соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS
     else:
-        # Все красные жетоны обработаны
-        # Показываем обновлённую карту жетонов
         from render_game_set import show_start_game_set_with_red_neighbors
         await show_start_game_set_with_red_neighbors(update, context)
+        await invite_player(update, context)
         return ConversationHandler.END
 
 
