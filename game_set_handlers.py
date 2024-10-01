@@ -6,7 +6,9 @@ from telegram.ext import ContextTypes, ConversationHandler
 from database import (
     add_game_set,
     clear_tokens,
-    add_tokens
+    add_tokens,
+    update_token_alignment,
+    update_token_character
 )
 import logging
 from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
@@ -103,8 +105,8 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
         return GET_RED_TOKEN_NUMBER
 
     # Обновляем жетон в базе данных, помечая его как красный
-    from database import update_token_alignment
     update_token_alignment(token_number, 'red')
+    update_token_character(token_number, 'minion')
     selected_red_tokens.append(token_number)
     logger.info(f"Жетон номер {token_number} помечен как красный.")
 
