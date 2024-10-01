@@ -21,6 +21,9 @@ from game_set_handlers import (
     get_demon_token_number,
     get_red_token_red_neighbors
 )
+from player_manager import (
+    confirm_invite  # Импортируем новый обработчик
+)
 from constants import (
     HANDLE_PASSWORD,
     GET_USERNAME,
@@ -29,7 +32,8 @@ from constants import (
     GET_RED_COUNT,
     GET_RED_TOKEN_NUMBER,
     GET_DEMON_TOKEN_NUMBER,
-    GET_RED_TOKEN_RED_NEIGHBORS
+    GET_RED_TOKEN_RED_NEIGHBORS,
+    CONFIRM_INVITE
 )
 
 conv_handler = ConversationHandler(
@@ -59,6 +63,9 @@ conv_handler = ConversationHandler(
         ],
         GET_RED_TOKEN_RED_NEIGHBORS: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_red_token_red_neighbors)
+        ],
+        CONFIRM_INVITE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_invite)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],

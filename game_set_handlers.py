@@ -196,8 +196,7 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
     else:
         from render_game_set import show_start_game_set_with_red_neighbors
         await show_start_game_set_with_red_neighbors(update, context)
-        await invite_player(update, context)
-        return ConversationHandler.END
+        return await invite_player(update, context)
 
 
 async def finalize_red_tokens_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
