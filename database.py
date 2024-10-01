@@ -79,13 +79,16 @@ def is_user_moderator(userid, db_path='empaths.db'):
     return False
 
 
-def add_game_set(tokens_count, red_count, player_username, db_path='empaths.db'):
+def add_game_set(tokens_count, red_count, player_username, player_id):
     """
-    Добавляет новую запись в таблицу game_set.
+    Добавляет запись в таблицу game_set.
     """
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect('empaths.db')
     cursor = conn.cursor()
-    cursor.execute(INSERT_GAME_SET, (tokens_count, red_count, player_username))
+    cursor.execute('''
+        INSERT INTO game_set (tokens_count, red_count, player_username, player_id)
+        VALUES (?, ?, ?, ?)
+    ''', (tokens_count, red_count, player_username, player_id))
     conn.commit()
     conn.close()
     
@@ -107,6 +110,7 @@ def get_latest_game_set(db_path='empaths.db'):
             'player_username': result[2]
         }
     return None
+
 def clear_tokens(db_path='empaths.db'):
     """
     Очищает таблицу tokens и сбрасывает счетчик автоинкремента.

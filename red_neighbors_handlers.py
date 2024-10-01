@@ -8,14 +8,22 @@ logger = logging.getLogger(__name__)
 
 def count_red_neighbors_of_blue_tokens():
     """
-    Рассчитывает количество красных соседей для каждого синего жетона
+    Рассчитывает количество красных соседей для каждого синего живого жетона
     и обновляет поле red_neighbors в базе данных.
+    Мёртвые жетоны пропускаются при подсчёте соседей.
     """
     # Получаем все жетоны из базы данных
     tokens = get_all_tokens()
     
     # Создаем словарь для удобного доступа к жетонам по их id
-    tokens_dict = {token['id']: {'alignment': token['alignment'], 'character': token['character'], 'red_neighbors': token['red_neighbors']} for token in tokens}
+    tokens_dict = {
+        token['id']: {
+            'alignment': token['alignment'],
+            'character': token['character'],
+            'red_neighbors': token['red_neighbors'],
+            'alive': token['alive']
+        } for token in tokens
+    }
     
     tokens_count = len(tokens)
     
@@ -26,26 +34,45 @@ def count_red_neighbors_of_blue_tokens():
             logger.warning(f"Жетон с id={token_id} не найден.")
             continue
 
-        if token['alignment'] == 'blue':
-            # Для синего жетона считаем количество красных соседей
+        if token['alignment'] == 'blue' and token['alive']:
+            # Для синего живого жетона считаем количество красных соседей
             red_neighbors = 0
             
-            # Находим соседей с учётом цикличности (круговая расстановка жетонов)
-            left_neighbor_id = token_id - 1 if token_id > 1 else tokens_count
-            right_neighbor_id = token_id + 1 if token_id < tokens_count else 1
-            
-            left_neighbor = tokens_dict.get(left_neighbor_id)
-            right_neighbor = tokens_dict.get(right_neighbor_id)
-            
+            # Находим левого живого соседа
+            left_neighbor_id = token_id
+            for _ in range(tokens_count - 1):  # Максимум tokens_count - 1 шагов
+                left_neighbor_id = left_neighbor_id - 1 if left_neighbor_id > 1 else tokens_count
+                if left_neighbor_id == token_id:
+                    # Возвратились к самому себе
+                    break
+                left_neighbor = tokens_dict.get(left_neighbor_id)
+                if left_neighbor and left_neighbor['alive']:
+                    break
+            else:
+                left_neighbor = None
+
+            # Находим правого живого соседа
+            right_neighbor_id = token_id
+            for _ in range(tokens_count - 1):
+                right_neighbor_id = right_neighbor_id + 1 if right_neighbor_id < tokens_count else 1
+                if right_neighbor_id == token_id:
+                    # Возвратились к самому себе
+                    break
+                right_neighbor = tokens_dict.get(right_neighbor_id)
+                if right_neighbor and right_neighbor['alive']:
+                    break
+            else:
+                right_neighbor = None
+
             # Проверяем цвет соседей
             if left_neighbor and left_neighbor['alignment'] == 'red':
                 red_neighbors += 1
             if right_neighbor and right_neighbor['alignment'] == 'red':
                 red_neighbors += 1
-            
+
             # Обновляем поле red_neighbors в базе данных
             update_token_red_neighbors(token_id, red_neighbors)
             logger.info(f"Жетон {token_id}: количество красных соседей обновлено до {red_neighbors}")
         else:
-            # Для красных жетонов red_neighbors не обновляем
+            # Для красных жетонов и мёртвых синих жетонов red_neighbors не обновляем
             pass

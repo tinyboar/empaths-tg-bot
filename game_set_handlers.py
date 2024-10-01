@@ -8,7 +8,9 @@ from database import (
     clear_tokens,
     add_tokens,
     update_token_alignment,
-    update_token_character
+    update_token_character,
+    get_latest_game_set,
+    get_user_by_id
 )
 import logging
 from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
@@ -50,6 +52,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     red_count = int(red_count_text)
     tokens_count = context.user_data['game_set']['tokens_count']
+    player_id = update.effective_user.id
     player_username = context.user_data['game_set']['player_username']
 
     # Проверка, что red_count не превышает tokens_count
@@ -58,7 +61,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return GET_RED_COUNT
 
     # Сохраняем настройки игры в базе данных
-    add_game_set(tokens_count, red_count, player_username)
+    add_game_set(tokens_count, red_count, player_username, player_id)
     await update.message.reply_text("Настройки игры успешно сохранены!")
     logger.info(f"Игра создана: tokens_count={tokens_count}, red_count={red_count}, player_username={player_username}")
 
@@ -196,8 +199,47 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
         return await invite_player(update, context)
 
 
-async def finalize_red_tokens_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Отображает обновленную карту жетонов после выбора всех красных жетонов.
+    Обрабатывает команду /showsetup.
+    Если вызов сделал модератор, отображает настройки игры с модераторским видом.
+    Если вызов сделал игрок, отображает настройки игры с видом для игрока.
     """
-    await show_game_set(update, context, moderator=True)
+    user = update.effective_user
+    user_id = user.id
+    username = user.username or user.first_name or "Unknown"
+
+    # Получаем текущие настройки игры
+    game_set = get_latest_game_set()
+
+    if not game_set:
+        await update.message.reply_text("Игра не найдена или еще не начата.")
+        logger.info(f"Пользователь {username} ({user_id}) попытался вызвать /showsetup, но игра не начата.")
+        return
+
+    # Получаем player_id из настроек игры
+    player_id = game_set.get('player_id')
+
+    # Получаем информацию о пользователе из базы данных
+    user_data = get_user_by_id(user_id)
+
+    if not user_data:
+        await update.message.reply_text("Вы не зарегистрированы в системе.")
+        logger.warning(f"Пользователь {username} ({user_id}) не найден в базе данных.")
+        return
+
+    is_moderator = user_data.get('moderator', False)
+
+    if is_moderator:
+        # Вызов сделал модератор
+        await show_game_set(update, context, moderator=True)
+        logger.info(f"Модератор {username} ({user_id}) вызвал /showsetup.")
+    else:
+        # Проверяем, является ли пользователь игроком
+        if user_id == player_id:
+            await show_game_set(update, context, moderator=False)
+            logger.info(f"Игрок {username} ({user_id}) вызвал /showsetup.")
+        else:
+            await update.message.reply_text("У вас нет прав использовать эту команду.")
+            logger.warning(f"Пользователь {username} ({user_id}) попытался вызвать /showsetup без прав.")
+

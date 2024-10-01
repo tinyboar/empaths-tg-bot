@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS game_set (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tokens_count INTEGER,
     red_count INTEGER,
-    player_username VARCHAR(255)
+    player_username VARCHAR(255),
+    player_id INTEGER
 )
 '''
 
