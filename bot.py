@@ -2,14 +2,14 @@
 
 import logging
 import os
-from telegram.ext import ApplicationBuilder
 from dotenv import load_dotenv
+load_dotenv() 
+from telegram.ext import ApplicationBuilder
 from database import init_db
 from conversation_handler import conv_handler
 from telegram.ext import ContextTypes
 from telegram import Update
 
-load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:

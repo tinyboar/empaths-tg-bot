@@ -8,10 +8,11 @@ import logging
 from constants import HANDLE_PASSWORD, GET_USERNAME, SET_UP_GAME
 from game_set_handlers import set_up_game
 
-# Получение конфигурационных данных из переменных окружения
-MODERATOR_PASSWORD = os.getenv("MODERATOR_PASSWORD", "123")
+MODERATOR_PASSWORD = os.getenv("MODERATOR_PASSWORD")
+if not MODERATOR_PASSWORD:
+    raise ValueError("Переменная окружения MODERATOR_PASSWORD не установлена.")
 
-# Настройка логирования
+
 logger = logging.getLogger(__name__)
 
 def extract_user_info(user) -> tuple:
@@ -35,7 +36,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text(
         f"Привет, {username}! Ты успешно зарегистрирован.\n\n"
-        "Если вы модератор, введите пароль. Введите /skip, чтобы пропустить."
+        "Если вы модератор, введите пароль. Введите /skip, чтобы продолжить как игрок."
     )
 
     return HANDLE_PASSWORD
@@ -50,18 +51,18 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     username, userid = extract_user_info(user)
 
     if password == MODERATOR_PASSWORD:
-        # Обновляем пользователя как модератора
         add_user(username, userid, moderator=True)
         await update.message.reply_text("Вы успешно зарегистрированы как модератор!")
         logger.info(f"Пользователь {userid} зарегистрирован как модератор.")
 
-        # Переходим к вводу имени пользователя для игры
         await update.message.reply_text("Введите имя пользователя, с которым вы собираетесь играть:")
         return GET_USERNAME
     else:
-        await update.message.reply_text("Неверный пароль. Вы зарегистрированы как обычный пользователь.")
+        await update.message.reply_text(
+            "Пароль модератора неверный. Введите пароль ещё раз или введите /skip, чтобы продолжить как игрок."
+        )
         logger.warning(f"Неверный пароль от пользователя {userid}.")
-        return ConversationHandler.END
+        return HANDLE_PASSWORD
 
 async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """

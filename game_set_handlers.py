@@ -79,6 +79,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data['current_red_token_index'] = 1  # Индекс текущего запрашиваемого красного жетона
 
     # Запрашиваем первый номер красного жетона
+    await update.message.reply_text(f"Какие номера жетонов будут красными?")
     await update.message.reply_text(f"Выберите первый из {red_count} красных жетонов:")
     return GET_RED_TOKEN_NUMBER
 
