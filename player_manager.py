@@ -104,7 +104,7 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info(f"on_game обновлено для модератора {user_id} и игрока {player_userid}")
 
         try:
-            return await start_game(update, context, player_userid)
+            return await start_game(update, context)
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение игроку @{player_username} ({player_userid}): {e}")
             await update.message.reply_text(f"Не удалось отправить сообщение игроку @{player_username}.")

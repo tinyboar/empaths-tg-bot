@@ -79,19 +79,18 @@ def is_user_moderator(userid, db_path='empaths.db'):
     return False
 
 
-def add_game_set(tokens_count, red_count, player_username, player_id):
+def add_game_set(tokens_count, red_count, player_username, player_id, moderator_username, moderator_id):
     """
     Добавляет запись в таблицу game_set.
     """
     conn = sqlite3.connect('empaths.db')
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO game_set (tokens_count, red_count, player_username, player_id)
-        VALUES (?, ?, ?, ?)
-    ''', (tokens_count, red_count, player_username, player_id))
+        INSERT INTO game_set (tokens_count, red_count, player_username, player_id, moderator_username, moderator_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (tokens_count, red_count, player_username, player_id, moderator_username, moderator_id))
     conn.commit()
     conn.close()
-    
     
 def get_latest_game_set(db_path='empaths.db'):
     """
@@ -99,7 +98,7 @@ def get_latest_game_set(db_path='empaths.db'):
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT tokens_count, red_count, player_username FROM game_set ORDER BY id DESC LIMIT 1")
+    cursor.execute("SELECT tokens_count, red_count, player_id, player_username, moderator_id, moderator_username FROM game_set ORDER BY id DESC LIMIT 1")
     result = cursor.fetchone()
     conn.close()
 
@@ -107,7 +106,10 @@ def get_latest_game_set(db_path='empaths.db'):
         return {
             'tokens_count': result[0],
             'red_count': result[1],
-            'player_username': result[2]
+            'player_id': result[2],
+            'player_username': result[3],
+            'moderator_id': result[4],
+            'moderator_username': result[5]
         }
     return None
 

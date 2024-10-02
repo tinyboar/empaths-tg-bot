@@ -11,6 +11,7 @@ from database import (
     update_token_character,
     get_latest_game_set,
     get_user_by_id,
+    get_user_by_username,
     update_token_red_neighbors
     
 )
@@ -54,16 +55,21 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     red_count = int(red_count_text)
     tokens_count = context.user_data['game_set']['tokens_count']
-    player_id = update.effective_user.id
     player_username = context.user_data['game_set']['player_username']
+    player = get_user_by_username(player_username)
+    player_id = player['id']
 
+    moderator = update.message.from_user
+    moderator_id = moderator.id
+    moderator_username = moderator.username
+    
     # Проверка, что red_count не превышает tokens_count
     if red_count > tokens_count:
         await update.message.reply_text("Количество красных жетонов не может превышать общее количество жетонов.")
         return GET_RED_COUNT
 
     # Сохраняем настройки игры в базе данных
-    add_game_set(tokens_count, red_count, player_username, player_id)
+    add_game_set(tokens_count, red_count, player_username, player_id, moderator_username, moderator_id)
     await update.message.reply_text("Настройки игры успешно сохранены!")
     logger.info(f"Игра создана: tokens_count={tokens_count}, red_count={red_count}, player_username={player_username}")
 
@@ -76,7 +82,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     logger.info(f"Создано {tokens_count} жетонов в таблице tokens.")
 
     # Показываем начальные настройки игры с серыми жетонами
-    await show_game_set(context, player_id, moderator=True)
+    await show_game_set(context, moderator_id, moderator=True)
 
     # Инициализируем данные для ввода номеров красных жетонов
     context.user_data['red_count'] = red_count

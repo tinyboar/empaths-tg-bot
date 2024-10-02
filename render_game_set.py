@@ -13,7 +13,6 @@ from distributions import POSITIONS_MAP
 
 logger = logging.getLogger(__name__)
 
-# Путь к шрифтам
 FONT_PATH = os.path.join(os.path.dirname(__file__), 'fonts', 'DejaVuSans.ttf')
 
 def escape_markdown_v2(text: str) -> str:
@@ -36,7 +35,6 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
         red_count = game_set['red_count']
         player_username = game_set['player_username']
 
-        # Получаем карту распределения жетонов по количеству жетонов
         token_map = POSITIONS_MAP.get(tokens_count)
 
         if not token_map:
@@ -174,10 +172,9 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
             f"**Карта распределения жетонов:**"
         )
 
-        # Отправляем информацию и изображение
         await context.bot.send_message(chat_id=chat_id, text=game_info, parse_mode='MarkdownV2')
         await context.bot.send_photo(chat_id=chat_id, photo=image_bytes, caption="Карта распределения жетонов")
-        logger.info("Показаны настройки игры с картой жетонов.")
+        logger.info(f"Показаны настройки игры с картой жетонов пользователю {player_username}.")
     else:
         message = "Настройки игры не найдены."
         escaped_message = escape_markdown_v2(message)
