@@ -1,5 +1,3 @@
-# conversation_handler.py
-
 from telegram.ext import (
     ConversationHandler,
     CommandHandler,
@@ -26,7 +24,7 @@ from player_manager import (
 )
 from game_process_handlers import (
     start_game,
-    execute_token
+    execute_token_player  # Обратите внимание на переименование функции
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -42,7 +40,8 @@ from constants import (
     EXECUTE_TOKEN,
 )
 
-conv_handler = ConversationHandler(
+# ConversationHandler для модератора
+moderator_conv_handler = ConversationHandler(
     entry_points=[CommandHandler('start', start)],
     states={
         HANDLE_PASSWORD: [
@@ -74,10 +73,20 @@ conv_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_invite)
         ],
         START_GAME: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, start_game)
+            CommandHandler('start_game', start_game)
         ],
+        # Убираем EXECUTE_TOKEN из этого ConversationHandler
+    },
+    fallbacks=[CommandHandler('cancel', cancel)],
+    allow_reentry=True
+)
+
+# Новый ConversationHandler для игрока
+player_conv_handler = ConversationHandler(
+    entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, start_game)],
+    states={
         EXECUTE_TOKEN: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token_player)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],

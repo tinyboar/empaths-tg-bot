@@ -41,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text(
         f"Привет, {username}! Ты успешно зарегистрирован.\n\n"
-        "Если вы модератор, введите пароль. Нажими или введи /skip, чтобы продолжить как игрок."
+        "Если вы модератор, введите пароль. Чтобы продолжить как игрок нажми /skip"
     )
 
     return HANDLE_PASSWORD

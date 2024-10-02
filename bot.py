@@ -10,7 +10,7 @@ from telegram.ext import (
     ConversationHandler
 )
 from database import init_db
-from conversation_handler import conv_handler
+from conversation_handler import moderator_conv_handler, player_conv_handler
 from telegram.ext import ContextTypes
 from telegram import Update
 
@@ -33,8 +33,11 @@ def main():
     init_db()
     application = ApplicationBuilder().token(TOKEN).build()
 
-    # Добавляем основной ConversationHandler
-    application.add_handler(conv_handler)
+    # Добавляем ConversationHandler для модератора
+    application.add_handler(moderator_conv_handler)
+    
+    # Добавляем ConversationHandler для игрока
+    application.add_handler(player_conv_handler)
 
     # Добавляем обработчик ошибок
     application.add_error_handler(error_handler)

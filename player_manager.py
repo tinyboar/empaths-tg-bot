@@ -103,12 +103,19 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         update_user_on_game(player_userid, True)  # ID игрока
         logger.info(f"on_game обновлено для модератора {user_id} и игрока {player_userid}")
 
+        message = (
+            "Модератор настроил игру. Вы готовы начать? "
+            "Отправьте любое сообщение, чтобы получить раскладку жетонов"
+        )
         try:
-            return await start_game(update, context)
+            await context.bot.send_message(chat_id=player_userid, text=message)
+            logger.info(f"Игроку @{player_username} ({player_userid}) отправлено приглашение начать игру.")
+            await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение игроку @{player_username} ({player_userid}): {e}")
             await update.message.reply_text(f"Не удалось отправить сообщение игроку @{player_username}.")
 
+        # Возвращаем ConversationHandler.END, так как разговор с модератором на этом этапе завершён
         return ConversationHandler.END
     else:
         await update.message.reply_text(
