@@ -34,19 +34,21 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE, player_
     # Устанавливаем флаг ожидания ввода номера жетона
     context.bot_data[player_userid] = {'awaiting_execute_token': True}
 
-    return EXECUTE_TOKEN
+    return await execute_token(update, context, player_userid)
 
-async def execute_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def execute_token(update: Update, context: ContextTypes.DEFAULT_TYPE, player_userid) -> None:
     """
     Обрабатывает ввод игроком номера жетона.
     """
+    
+    logger.info(f"{update}")
     user = update.effective_user
     user_id = user.id
     username = user.username or user.first_name or "Unknown"
     text = update.message.text.strip()
 
     # Проверяем, ожидает ли игрок ввода номера жетона
-    user_state = context.bot_data.get(user_id, {})
+    user_state = context.bot_data.get(player_userid, {})
     if not user_state.get('awaiting_execute_token'):
         await update.message.reply_text("Вы не можете выполнять это действие сейчас.")
         return
