@@ -25,7 +25,8 @@ from player_manager import (
     confirm_invite,
 )
 from game_process_handlers import (
-    start_game
+    start_game,
+    execute_token
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -74,6 +75,9 @@ conv_handler = ConversationHandler(
         ],
         START_GAME: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, start_game)
+        ],
+        EXECUTE_TOKEN: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
