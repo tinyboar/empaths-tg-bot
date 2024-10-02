@@ -194,6 +194,19 @@ def update_token_character(token_id, character, db_path='empaths.db'):
     logger.info(f"Жетон с id={token_id} обновлен. character={character}")
 
 
+
+def get_red_tokens(db_path='empaths.db'):
+    """
+    Возвращает список номеров красных жетонов из базы данных.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM tokens WHERE alignment = 'red'")
+    rows = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
+
+
 def update_token_red_neighbors(token_id, red_neighbors, db_path='empaths.db'):
     """
     Обновляет поле red_neighbors жетона по его id.

@@ -24,7 +24,8 @@ from player_manager import (
 )
 from game_process_handlers import (
     start_game,
-    execute_token_player  # Обратите внимание на переименование функции
+    execute_token_player,
+    reenter_red_neighbors_for_red
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -38,11 +39,15 @@ from constants import (
     CONFIRM_INVITE,
     START_GAME,
     EXECUTE_TOKEN,
+    GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
 )
 
 # ConversationHandler для модератора
 moderator_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler('start', start)],
+    entry_points=[
+        CommandHandler('start', start),
+        MessageHandler(filters.TEXT & filters.Regex('^Ввести соседей$'), reenter_red_neighbors_for_red)
+    ],
     states={
         HANDLE_PASSWORD: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password),
@@ -75,7 +80,10 @@ moderator_conv_handler = ConversationHandler(
         START_GAME: [
             CommandHandler('start_game', start_game)
         ],
-        # Убираем EXECUTE_TOKEN из этого ConversationHandler
+        GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, reenter_red_neighbors_for_red)
+        ],
+
     },
     fallbacks=[CommandHandler('cancel', cancel)],
     allow_reentry=True
@@ -83,12 +91,13 @@ moderator_conv_handler = ConversationHandler(
 
 # Новый ConversationHandler для игрока
 player_conv_handler = ConversationHandler(
-    entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, start_game)],
+    entry_points=[MessageHandler(filters.ALL & ~filters.COMMAND, start_game)],
     states={
         EXECUTE_TOKEN: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token_player)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
-    allow_reentry=True
+    allow_reentry=False,  # Отключаем повторный вход в разговор
+    per_chat=False        # Отслеживаем разговор по пользователю
 )

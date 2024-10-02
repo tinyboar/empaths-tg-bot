@@ -1,8 +1,18 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from database import get_user_by_id, update_user_on_game, get_moderators, get_latest_game_set
+from database import (
+    get_user_by_id,
+    update_user_on_game,
+    get_moderators,
+    get_latest_game_set,
+    get_user_by_id,
+    get_red_tokens,
+    update_token_red_neighbors
+    
+)
+
 from render_game_set import show_game_set
-from constants import START_GAME, EXECUTE_TOKEN
+from constants import START_GAME, EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,6 +47,8 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # Переходим в состояние EXECUTE_TOKEN
     return EXECUTE_TOKEN
+
+# game_process_handlers.py
 
 async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -76,6 +88,71 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.warning("Модератор не найден для отправки сообщения.")
 
     await update.message.reply_text("Ваш выбор принят. Спасибо!")
-
-    # Завершаем разговор
+    context.bot_data['awaiting_red_neighbors'] = True
+    
+    await context.bot.send_message(
+        chat_id=moderator_id,
+        text="Игрок сделал свой выбор. Отправьте 'Ввести соседей', чтобы продолжить игру."
+    )
+    
     return ConversationHandler.END
+
+
+
+async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Запрашивает у модератора количество красных соседей для каждого красного жетона.
+    """
+    
+    # Проверяем, ожидается ли ввод красных соседей
+    if not context.bot_data.get('awaiting_red_neighbors'):
+        await update.message.reply_text("Сейчас нет необходимости вводить количество красных соседей.")
+        return ConversationHandler.END
+    
+    # Если это первый вызов функции, инициализируем данные
+    if 'red_tokens' not in context.user_data:
+        # Получаем список красных жетонов из базы данных
+        red_tokens = get_red_tokens()
+        context.user_data['red_tokens'] = red_tokens
+        context.user_data['current_red_token_index'] = 0
+        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {red_tokens[0]}:")
+        return GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
+
+
+    # В противном случае продолжаем запрашивать данные
+    red_tokens = context.user_data['red_tokens']
+    current_index = context.user_data['current_red_token_index']
+    token_number = red_tokens[current_index]
+
+    red_neighbors_text = update.message.text.strip()
+    if not red_neighbors_text.isdigit():
+        await update.message.reply_text("Пожалуйста, введите целое число для количества соседей.")
+        return GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
+
+    red_neighbors = int(red_neighbors_text)
+
+    # Обновляем поле red_neighbors в базе данных для текущего красного жетона
+    update_token_red_neighbors(token_number, red_neighbors)
+    logger.info(f"Жетон {token_number}: количество соседей обновлено до {red_neighbors}")
+
+    # Проверяем, есть ли ещё красные жетоны для обработки
+    current_index += 1
+    context.user_data['current_red_token_index'] = current_index
+
+    if current_index < len(red_tokens):
+        next_token_number = red_tokens[current_index]
+        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {next_token_number}:")
+        return GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
+    else:
+        # Все данные введены, сохраняем изменения и отправляем обновлённую раскладку
+        await update.message.reply_text("Ввод количества красных соседей завершён.")
+        player_id = get_latest_game_set().get('player_id')
+
+        # Отправляем обновлённую раскладку модератору
+        await show_game_set(context, update.effective_user.id, moderator=True)
+        # Отправляем обновлённую раскладку игроку
+        await show_game_set(context, player_id, moderator=False)
+        context.bot_data['awaiting_red_neighbors'] = False
+
+        # Завершаем разговор
+        return ConversationHandler.END
