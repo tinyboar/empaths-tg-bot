@@ -1,64 +1,40 @@
 # game_process_handlers.py
 
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler
 from database import get_user_by_id, update_user_on_game, get_moderators
 from render_game_set import show_game_set
-from constants import EXECUTE_TOKEN
+from constants import START_GAME, EXECUTE_TOKEN
 import logging
 
 logger = logging.getLogger(__name__)
 
-async def check_player_response(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Проверяет, ожидает ли игрок начала игры, и вызывает start_game при получении ответа.
-    """
-    user = update.effective_user
-    userid = user.id
-    username = user.username or user.first_name or "Unknown"
-
-    # Проверяем, ожидает ли игрок ответа
-    user_state = context.bot_data.get(userid, {})
-    if not user_state.get('expected_execute_token'):
-        # Игрок не ожидает ответа, игнорируем сообщение
-        return
-
-    # Удаляем флаг ожидания
-    context.bot_data.pop(userid, None)
-
-    # Получаем информацию о пользователе из базы данных
-    player = get_user_by_id(userid)
-    if not player:
-        logger.warning(f"Пользователь {username} ({userid}) не найден в базе данных.")
-        return
-
-    if player['on_game'] and not player.get('moderator', False):
-        # Игрок ответил, запускаем игру
-        await start_game(update, context)
-    else:
-        # Игнорируем сообщения от пользователей, которые не ожидают начала игры
-        pass
-
-async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE, player_userid: int) -> int:
     """
     Отправляет игроку карту жетонов и уведомляет модератора.
     """
-    user = update.effective_user
-    userid = user.id
-    username = user.username or user.first_name or "Unknown"
+    player = get_user_by_id(player_userid)
+    if not player:
+        logger.error(f"Игрок с ID {player_userid} не найден.")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Игрок не найден.")
+        return ConversationHandler.END
+
+    username = player['username'] or player['first_name'] or "Unknown"
 
     # Отправляем игроку карту жетонов
-    await show_game_set(update, context, moderator=False)
-    logger.info(f"Игроку {username} ({userid}) отправлена карта жетонов.")
+    await show_game_set(context, player_userid, moderator=False)
+    logger.info(f"Игроку @{username} ({player_userid}) отправлена карта жетонов.")
 
     # Обновляем поле on_game у игрока
-    update_user_on_game(userid, True)
+    update_user_on_game(player_userid, True)
 
     # Отправляем запрос на выбор жетона для казни
-    await update.message.reply_text("Введите номер жетона, который вы собираетесь казнить:")
+    await context.bot.send_message(chat_id=player_userid, text="Введите номер жетона, который вы собираетесь казнить:")
 
     # Устанавливаем флаг ожидания ввода номера жетона
-    context.bot_data[userid] = {'awaiting_execute_token': True}
+    context.bot_data[player_userid] = {'awaiting_execute_token': True}
+
+    return EXECUTE_TOKEN
 
 async def execute_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -110,3 +86,4 @@ async def execute_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     # Убираем флаг ожидания ввода номера жетона
     context.bot_data.pop(user_id, None)
+    return ConversationHandler.END

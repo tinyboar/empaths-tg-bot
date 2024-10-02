@@ -25,7 +25,7 @@ from player_manager import (
     confirm_invite,
 )
 from game_process_handlers import (
-    execute_token,
+    start_game
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -37,7 +37,8 @@ from constants import (
     GET_DEMON_TOKEN_NUMBER,
     GET_RED_TOKEN_RED_NEIGHBORS,
     CONFIRM_INVITE,
-    EXECUTE_TOKEN
+    START_GAME,
+    EXECUTE_TOKEN,
 )
 
 conv_handler = ConversationHandler(
@@ -71,8 +72,8 @@ conv_handler = ConversationHandler(
         CONFIRM_INVITE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_invite)
         ],
-        EXECUTE_TOKEN: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token)
+        START_GAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, start_game)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],

@@ -76,7 +76,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     logger.info(f"Создано {tokens_count} жетонов в таблице tokens.")
 
     # Показываем начальные настройки игры с серыми жетонами
-    await show_game_set(update, context, moderator=True)
+    await show_game_set(context, player_id, moderator=True)
 
     # Инициализируем данные для ввода номеров красных жетонов
     context.user_data['red_count'] = red_count
@@ -88,6 +88,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await update.message.reply_text(f"Какие номера жетонов будут красными?")
     await update.message.reply_text(f"Выберите первый из {red_count} красных жетонов:")
     return GET_RED_TOKEN_NUMBER
+
 
 async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -155,8 +156,8 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
     # Вызываем функцию для подсчёта красных соседей у синих жетонов
     count_red_neighbors_of_blue_tokens()
     logger.info("Подсчёт красных соседей для синих жетонов завершён.")
-
-    await show_game_set(update, context, moderator=True)
+    player_id = update.effective_user.id
+    await show_game_set(context, player_id, moderator=True)
 
     # Инициализируем данные для ввода red_neighbors для красных жетонов
     context.user_data['red_tokens'] = selected_red_tokens
@@ -164,7 +165,7 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
 
     # Запрашиваем количество соседей для первого красного жетона
     first_red_token = context.user_data['red_tokens'][0]
-    await update.message.reply_text(f"Введите количество соседей для жетона номер {first_red_token}:")
+    await update.message.reply_text(f"Введите количество красных соседей для жетона номер {first_red_token}:")
     return GET_RED_TOKEN_RED_NEIGHBORS
 
 
@@ -193,10 +194,11 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
 
     if current_index < len(red_tokens):
         next_token_number = red_tokens[current_index]
-        await update.message.reply_text(f"Введите количество соседей для жетона номер {next_token_number}:")
+        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS
     else:
-        await show_game_set(update, context, moderator=True)
+        player_id = update.effective_user.id
+        await show_game_set(context, player_id, moderator=True)
         return await invite_player(update, context)
 
 

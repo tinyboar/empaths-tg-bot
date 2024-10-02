@@ -5,7 +5,8 @@ from database import get_user_by_username, get_moderators, update_user_on_game
 
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from constants import CONFIRM_INVITE, EXECUTE_TOKEN
+from constants import CONFIRM_INVITE, START_GAME
+from game_process_handlers import start_game
 
 logger = logging.getLogger(__name__)
 
@@ -102,18 +103,8 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         update_user_on_game(player_userid, True)  # ID игрока
         logger.info(f"on_game обновлено для модератора {user_id} и игрока {player_userid}")
 
-        # Отправляем сообщение игроку
-        message = (
-            "Модератор настроил игру. Вы готовы начать? "
-            "Отправьте любое сообщение, чтобы получить раскладку жетонов"
-        )
         try:
-            await context.bot.send_message(chat_id=player_userid, text=message)
-            logger.info(f"Игроку @{player_username} ({player_userid}) отправлено приглашение начать игру.")
-            await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
-
-            # Устанавливаем флаг ожидания ответа от игрока в bot_data
-            context.bot_data[player_userid] = {'expected_execute_token': True}
+            return await start_game(update, context, player_userid)
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение игроку @{player_username} ({player_userid}): {e}")
             await update.message.reply_text(f"Не удалось отправить сообщение игроку @{player_username}.")

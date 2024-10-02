@@ -22,7 +22,7 @@ def escape_markdown_v2(text: str) -> str:
     """
     return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
 
-async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, moderator: bool) -> None:
+async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, moderator: bool) -> None:
     """
     Показывает настройки игры, включая визуализацию карты жетонов.
     Если moderator=True, отображает реальные цвета жетонов.
@@ -42,7 +42,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         if not token_map:
             message = "Карта распределения жетонов для данного количества жетонов не найдена."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.warning(f"Карта распределения жетонов для tokens_count={tokens_count} не найдена.")
             return
 
@@ -52,7 +52,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         if not tokens_data:
             message = "Жетоны не найдены."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.warning("Жетоны не найдены.")
             return
 
@@ -108,7 +108,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         if not os.path.isfile(FONT_PATH):
             message = f"Файл шрифта не найден по пути '{FONT_PATH}'."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.error(f"Файл шрифта не найден по пути '{FONT_PATH}'.")
             return
 
@@ -119,7 +119,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         except Exception as e:
             message = "Не удалось загрузить шрифт."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.error(f"Ошибка при загрузке шрифта: {e}")
             return
 
@@ -175,11 +175,11 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         )
 
         # Отправляем информацию и изображение
-        await update.message.reply_text(game_info, parse_mode='MarkdownV2')
-        await update.message.reply_photo(photo=image_bytes, caption="Карта распределения жетонов")
+        await context.bot.send_message(chat_id=chat_id, text=game_info, parse_mode='MarkdownV2')
+        await context.bot.send_photo(chat_id=chat_id, photo=image_bytes, caption="Карта распределения жетонов")
         logger.info("Показаны настройки игры с картой жетонов.")
     else:
         message = "Настройки игры не найдены."
         escaped_message = escape_markdown_v2(message)
-        await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+        await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
         logger.warning("Настройки игры не найдены.")
