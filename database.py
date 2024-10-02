@@ -204,7 +204,9 @@ def get_red_tokens(db_path='empaths.db'):
     cursor.execute("SELECT id FROM tokens WHERE alignment = 'red'")
     rows = cursor.fetchall()
     conn.close()
-    return [row[0] for row in rows]
+    red_token_ids = [row[0] for row in rows]
+    logger.info(f"get_red_tokens: retrieved red tokens: {red_token_ids}")
+    return red_token_ids
 
 
 def update_token_red_neighbors(token_id, red_neighbors, db_path='empaths.db'):
