@@ -3,7 +3,7 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from database import add_user
+from database import add_user, get_user_by_username
 import logging
 from constants import HANDLE_PASSWORD, GET_USERNAME, SET_UP_GAME
 from game_set_handlers import set_up_game
@@ -90,6 +90,14 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     game_set['player_username'] = player_username
     logger.info(f"Получено имя пользователя для игры: {player_username}")
     await update.message.reply_text("Имя пользователя сохранено. Теперь настройте игру.")
+    
+    player = get_user_by_username(player_username)
+    player_id = player['id']
+
+    await context.bot.send_message(
+        chat_id=player_id,
+        text=(f"Модератор @{update.effective_user.username} выбрал тебя для игры.")
+    )
     
     return await set_up_game(update, context)
 
