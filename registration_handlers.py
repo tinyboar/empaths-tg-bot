@@ -44,7 +44,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     clear_game_set()
 
     await update.message.reply_text(
-            f"Привет, {escape_html(username)}! Ты успешно зарегистрирован.\n"
+            f"Привет, {escape_html(username)}! Это 'Кровь на часовой башне', где все синие - эмпаты.\n"
+            f"Ты успешно зарегистрирован.\n"
             "Введи пароль, чтобы стать модератором партии\n\n"
             "/skip чтобы продолжить как игрок",
             parse_mode='HTML'
