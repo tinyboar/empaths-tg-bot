@@ -18,6 +18,8 @@ from game_set_handlers import (
     get_red_token_number,
     get_demon_token_number,
     get_red_token_red_neighbors,
+    random_red_set,
+    manual_entry_red_set,
 )
 from player_manager import (
     confirm_invite,
@@ -42,7 +44,8 @@ from constants import (
     START_GAME,
     EXECUTE_TOKEN,
     GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME,
-    CONFIRM_KILL
+    CONFIRM_KILL,
+    RANDOM_RED_SET
 )
 
 # ConversationHandler для модератора
@@ -60,14 +63,15 @@ moderator_conv_handler = ConversationHandler(
         GET_USERNAME: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_username)
         ],
-        SET_UP_GAME: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_up_game)
-        ],
         GET_TOKENS_COUNT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_tokens_count)
         ],
         GET_RED_COUNT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_red_count)
+        ],
+        RANDOM_RED_SET: [
+            CommandHandler('random_red_set', random_red_set),
+            CommandHandler('manual_entry_red_set', manual_entry_red_set)
         ],
         GET_RED_TOKEN_NUMBER: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_red_token_number)
@@ -79,7 +83,7 @@ moderator_conv_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_red_token_red_neighbors)
         ],
         CONFIRM_INVITE: [
-            CommandHandler('pass_turn_to_player', confirm_invite)  # Обработка команды /pass_turn_to_player
+            CommandHandler('pass_turn_to_player', confirm_invite)
         ],
         START_GAME: [
             CommandHandler('start_game', start_game)
@@ -96,6 +100,7 @@ moderator_conv_handler = ConversationHandler(
     per_chat=False,
     per_user=True
 )
+
 
 
 # ConversationHandler для игрока
