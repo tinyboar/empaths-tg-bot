@@ -165,11 +165,11 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
         # Экранирование и форматирование информации об игре
         escaped_player_username = escape_markdown_v2(player_username)
         game_info = (
-            f"**Текущие настройки игры:**\n"
-            f"**Игрок:** {escaped_player_username}\n"
-            f"**Количество жетонов \\(tokens_count\\):** {tokens_count}\n"
-            f"**Количество красных жетонов \\(red_count\\):** {red_count}\n\n"
-            f"**Карта распределения жетонов:**"
+            f"Текущие настройки игры:\n"
+            f"Игрок: @{escaped_player_username}\n"
+            f"Количество жетонов: {tokens_count}\n"
+            f"Количество красных жетонов: {red_count}\n\n"
+            f"Карта распределения жетонов:"
         )
 
         # Отправляем информацию и изображение

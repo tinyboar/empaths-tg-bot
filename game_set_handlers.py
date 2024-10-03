@@ -23,7 +23,9 @@ async def set_up_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     """
     Начинает настройку игры после ввода имени пользователя.
     """
-    await update.message.reply_text("Введите количество жетонов (tokens_count):")
+    await update.message.reply_text(
+        "Введи количество жетонов(это общее количетсво жетонов за столом):"
+        )
     return GET_TOKENS_COUNT
 
 async def get_tokens_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -32,7 +34,7 @@ async def get_tokens_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """
     tokens_count_text = update.message.text.strip()
     if not tokens_count_text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите целое число для количества жетонов.")
+        await update.message.reply_text("Нужно ввести целое число")
         return GET_TOKENS_COUNT
 
     tokens_count = int(tokens_count_text)
@@ -40,7 +42,7 @@ async def get_tokens_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if 'game_set' not in context.user_data:
         context.user_data['game_set'] = {}
     context.user_data['game_set']['tokens_count'] = tokens_count
-    await update.message.reply_text("Введите количество красных жетонов (red_count):")
+    await update.message.reply_text("Введи количество красных жетонов(включая демона):")
     return GET_RED_COUNT
 
 
@@ -50,13 +52,13 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     red_count_text = update.message.text.strip()
     if not red_count_text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите целое число для количества красных жетонов.")
+        await update.message.reply_text("Пожалуйста, введи целое число для количества красных жетонов.")
         return GET_RED_COUNT
 
     red_count = int(red_count_text)
     # Проверяем, что tokens_count уже сохранен
     if 'game_set' not in context.user_data or 'tokens_count' not in context.user_data['game_set']:
-        await update.message.reply_text("Произошла ошибка. Пожалуйста, начните сначала.")
+        await update.message.reply_text("Произошла ошибка. Пожалуйста, начни сначала.")
         return ConversationHandler.END
 
     tokens_count = context.user_data['game_set']['tokens_count']

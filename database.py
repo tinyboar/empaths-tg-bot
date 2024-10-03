@@ -331,6 +331,11 @@ def reset_user_game_state(user_id):
     """
     conn = sqlite3.connect('empaths.db')
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET on_game = 0 WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute("UPDATE users SET on_game = 0 WHERE id = ?", (user_id,))
+        conn.commit()
+        logger.info(f"Состояние on_game для пользователя с id {user_id} успешно сброшено.")
+    except Exception as e:
+        logger.error(f"Ошибка при сбросе состояния on_game для пользователя с id {user_id}: {e}")
+    finally:
+        conn.close()

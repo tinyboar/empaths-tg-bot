@@ -46,11 +46,10 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await context.bot.send_message(
         chat_id=player_id,
-        text="Введите номер жетона, который вы собираетесь казнить:",
+        text="Введи номер жетона, который ты собираешься казнить:",
         parse_mode='MarkdownV2'
     )
 
-    # Переходим в состояние EXECUTE_TOKEN
     return EXECUTE_TOKEN
 
 async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -64,12 +63,12 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Проверяем, была ли введена команда /execute_token
     if text == "/execute_token":
-        await update.message.reply_text("Введите номер жетона, который вы собираетесь казнить:")
+        await update.message.reply_text("Введи номер жетона, который ты собираешься казнить:")
         return EXECUTE_TOKEN
 
     # Проверяем, что введено число (после команды /execute_token)
     if not text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите корректный номер жетона (целое число).")
+        await update.message.reply_text("Пожалуйста, введи корректный номер жетона (целое число).")
         return EXECUTE_TOKEN
 
     token_id = int(text)
@@ -132,7 +131,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     await context.bot.send_message(
         chat_id=moderator_id,
         text="/enter_neighbors, ввести соседей для красных жетонов\n\n"
-        "/skip_enter_neighbors, пропустить шаг выбора соседей",
+        "/skip_enter_neighbors, пропустить шаг выбора соседей и перейти к выболру жетона для убийства",
         parse_mode='HTML'
     )
 
@@ -143,10 +142,7 @@ async def skip_enter_neighbors(update: Update, context: ContextTypes.DEFAULT_TYP
     """
     Пропускает ввод количества соседей для красных жетонов и переходит к этапу выбора жетона для убийства.
     """
-    await update.message.reply_text("Вы пропустили ввод количества соседей для красных жетонов. Переходим к выбору жетона для убийства.")
-    logger.info("Модератор пропустил ввод соседей, переход к выбору жетона для убийства.")
-
-    # Переход к функции kill_token для выбора жетона на убийство
+    await update.message.reply_text("Переходим к выбору жетона для убийства.")
     return await kill_token(update, context)
 
 
@@ -236,7 +232,7 @@ async def kill_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Запрашивает у модератора выбор жетона для убийства.
     """
-    await update.message.reply_text("Пожалуйста, выберите жетон для убийства, введя его номер:")
+    await update.message.reply_text("Выбери жетон для убийства, введя его номер:")
     return CONFIRM_KILL
 
 async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -261,13 +257,15 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         game_set = get_latest_game_set()
         player_id = game_set.get('player_id')
         
+        await show_game_set(context, player_id, moderator=True)
         await context.bot.send_message(
             chat_id=player_id,
             text="🏆 Модератор зачем-то убил демона, победа синего города!"
         )
 
         await update.message.reply_text(
-            "💀 Вы зачем-то убили демона. Что ж, это победа синего города. /start, чтобы начать игру заново"
+            "💀 Вы зачем-то убили демона. Что ж, это победа синего города.\n"
+            "/start, чтобы начать игру заново"
         )
         logger.info(f"Модератор убил демона (жетон {token_id}). Победа синего города.")
         
