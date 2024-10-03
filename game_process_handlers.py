@@ -10,7 +10,8 @@ from database import (
     get_token_by_id,
     get_red_tokens,
     update_token_red_neighbors,
-    update_token_kill
+    update_token_kill,
+    reset_user_game_state
 )
 from render_game_set import show_game_set
 from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE, CONFIRM_KILL, SKIP_ENTER_NEIGHBORS
@@ -94,6 +95,8 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
                 text=f"💀 Игрок @{username} казнил демона. Победа синих. Нажмите /start, чтобы начать игру заново"
             )
             logger.info(f"Игрок @{username} казнил демона. Победа синих объявлена.")
+            reset_user_game_state(user_id)
+            reset_user_game_state(moderator_id)
         else:
             logger.warning("Модератор не найден для отправки сообщения.")
 
@@ -263,11 +266,14 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             text="🏆 Модератор зачем-то убил демона, победа синего города!"
         )
 
-        # Сообщение модератору о победе синих
         await update.message.reply_text(
             "💀 Вы зачем-то убили демона. Что ж, это победа синего города. /start, чтобы начать игру заново"
         )
         logger.info(f"Модератор убил демона (жетон {token_id}). Победа синего города.")
+        
+        reset_user_game_state(player_id)
+        moderator_id = update.effective_user.id
+        reset_user_game_state(moderator_id)
 
         return ConversationHandler.END
 

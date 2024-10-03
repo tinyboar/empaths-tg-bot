@@ -325,3 +325,12 @@ def update_user_on_game(userid, on_game, db_path='empaths.db'):
     conn.close()
 
 
+def reset_user_game_state(user_id):
+    """
+    Сбрасывает состояние on_game для указанного пользователя.
+    """
+    conn = sqlite3.connect('empaths.db')
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET on_game = 0 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
