@@ -138,8 +138,8 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
         context.user_data.pop('red_tokens', None)
         context.user_data.pop('current_red_token_index', None)
 
-        # Завершаем разговор модератора и запускаем приглашение игрока
-        return await invite_player(update, context)
+        # Завершили ввод соседей, теперь предлагаем модератору убить жетон
+        return await kill_token(update, context)
 
     token_number = red_tokens[current_index]
 
@@ -169,12 +169,37 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
 
         # Отправляем обновлённую раскладку модератору
         await show_game_set(context, update.effective_user.id, moderator=True)
-        
+
         # Сбрасываем флаги и очищаем данные
         context.bot_data['awaiting_red_neighbors'] = False
         context.user_data.pop('awaiting_red_neighbors_input', None)
         context.user_data.pop('red_tokens', None)
         context.user_data.pop('current_red_token_index', None)
 
-        # Переход к функции invite_player для передачи хода игроку
-        return await invite_player(update, context)
+        # Переход к функции kill_token для выбора жетона на убийство
+        return await kill_token(update, context)
+
+async def kill_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Запрашивает у модератора выбор жетона для убийства.
+    """
+    await update.message.reply_text("Пожалуйста, выберите жетон для убийства, введя его номер:")
+    return CONFIRM_INVITE
+
+async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Обрабатывает ввод номера жетона для убийства модератором.
+    """
+    text = update.message.text.strip()
+    if not text.isdigit():
+        await update.message.reply_text("Пожалуйста, введите корректный номер жетона (целое число).")
+        return CONFIRM_INVITE
+
+    token_id = int(text)
+
+    # Логируем выбор модератора
+    logger.info(f"Модератор выбрал жетон {token_id} для убийства.")
+    await update.message.reply_text(f"Жетон {token_id} выбран для убийства.")
+
+    # Переход к функции invite_player для передачи хода игроку
+    return await invite_player(update, context)

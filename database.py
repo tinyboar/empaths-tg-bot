@@ -193,7 +193,20 @@ def update_token_character(token_id, character, db_path='empaths.db'):
     conn.close()
     logger.info(f"Жетон с id={token_id} обновлен. character={character}")
 
-
+def update_token_kill(token_id, db_path='empaths.db'):
+    """
+    Обновляет поле character жетона по его id.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE tokens SET alive = FALSE WHERE id = ?',
+        (token_id)
+    )
+    conn.commit()
+    conn.close()
+    logger.info(f"Жетон с id={token_id} обновлен. alive=False")
+    
 
 def get_red_tokens(db_path='empaths.db'):
     """

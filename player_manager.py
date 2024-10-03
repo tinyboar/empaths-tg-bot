@@ -81,10 +81,8 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         update_user_on_game(player_userid, True)                   # Обновляем статус игрока
 
         await show_game_set(context, player_userid, moderator=False)
-        logger.info(f"Игроку @{player_username} ({player_userid}) отправлена раскладка жетонов.")
-        await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
+        await update.message.reply_text(f"Игрок @{player_username} получил раскладку. Ждем его ход.")
 
-        # Запуск команды /execute_token для выбора жетона игроком
         await context.bot.send_message(
             chat_id=player_userid,
             text="Введите команду /execute_token, чтобы выбрать жетон, который вы собираетесь казнить."
