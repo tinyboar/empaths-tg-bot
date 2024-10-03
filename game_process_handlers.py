@@ -83,6 +83,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     update_token_kill(token_id)
     logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
     await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен.")
+    await show_game_set(context, user_id, moderator=False)
 
     count_red_neighbors_of_blue_tokens()
     
@@ -198,7 +199,7 @@ async def kill_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Запрашивает у модератора выбор жетона для убийства.
     """
     await update.message.reply_text("Пожалуйста, выберите жетон для убийства, введя его номер:")
-    return CONFIRM_KILL  # Возвращаем состояние CONFIRM_KILL для ожидания ввода номера жетона
+    return CONFIRM_KILL
 
 async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -221,5 +222,6 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     logger.info(f"Жетон {token_id} выбран для убийства и помечен как убит.")
     await update.message.reply_text(f"Жетон {token_id} выбран для убийства и его статус обновлен.")
     count_red_neighbors_of_blue_tokens()
+    await show_game_set(context, update.effective_user.id, moderator=True)
     # Переход к функции invite_player для передачи хода игроку
     return await invite_player(update, context)

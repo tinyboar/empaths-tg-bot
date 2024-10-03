@@ -59,7 +59,7 @@ async def invite_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data['player_username'] = player_username
     message = (
         f"/start - начать настройку заново. "
-        f"1 - чтобы отправить игроку раскладку жетонов"
+        f"/pass_turn_to_player - передать ход игроку и отправить ему раскладку жетонов"
     )
     await update.message.reply_text(message)
 
@@ -69,9 +69,7 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """
     Обрабатывает ответ модератора на предложение пригласить игрока.
     """
-    text = update.message.text.strip()
-
-    if text == '1':
+    if update.message.text.strip() == "/pass_turn_to_player":
         player_username = context.user_data.get('player_username')
         player = get_user_by_username(player_username)
         player_userid = player['id']
@@ -91,6 +89,6 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
     else:
         await update.message.reply_text(
-            "Неверный ввод. Пожалуйста, отправьте 1, чтобы пригласить игрока, или /start, чтобы начать настройку заново."
+            "Неверная команда. Пожалуйста, отправьте /pass_turn_to_player, чтобы пригласить игрока, или /start, чтобы начать настройку заново."
         )
         return CONFIRM_INVITE

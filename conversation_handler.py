@@ -79,7 +79,7 @@ moderator_conv_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_red_token_red_neighbors)
         ],
         CONFIRM_INVITE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_invite)
+            CommandHandler('pass_turn_to_player', confirm_invite)  # Обработка команды /pass_turn_to_player
         ],
         START_GAME: [
             CommandHandler('start_game', start_game)
