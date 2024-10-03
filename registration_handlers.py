@@ -11,6 +11,7 @@ from player_manager import (
     player_registration_notice,
     player_start_game_notice
 )
+import re
 
 from utils import escape_html
 
@@ -79,6 +80,8 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return HANDLE_PASSWORD
 
+import re
+
 async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Обрабатывает ввод имени пользователя для игры и передаёт управление в set_up_game.
@@ -90,8 +93,9 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text("Имя пользователя не может быть пустым. Пожалуйста, введите имя пользователя:")
         return GET_USERNAME
     
-    if not player_username.isalnum():
-        await update.message.reply_text("Имя пользователя должно содержать только буквы и цифры. Пожалуйста, введите корректное имя пользователя:")
+    # Проверяем, что имя пользователя содержит только буквы, цифры, "-" и "_"
+    if not re.match(r'^[\w-]+$', player_username):
+        await update.message.reply_text("Имя пользователя должно содержать только буквы, цифры, '-' и '_'. Пожалуйста, введите корректное имя пользователя:")
         return GET_USERNAME
     
     game_set = context.user_data.setdefault('game_set', {})
@@ -108,7 +112,7 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         "это информация эмпатов\n"
         "Нужно будет ввести 0, 1 или 2",
         parse_mode='HTML'
-        )
+    )
     
     player = get_user_by_username(player_username)
     player_id = player['id']
