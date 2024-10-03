@@ -171,7 +171,7 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
         context.user_data['current_red_token_index'] = 0
         # Устанавливаем флаг, чтобы знать, что мы в процессе ввода
         context.user_data['awaiting_red_neighbors_input'] = True
-        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {red_tokens[0]}:")
+        await update.message.reply_text(f"Введи количество красных соседей для жетона номер {red_tokens[0]}:")
         return GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
 
     # В противном случае продолжаем запрашивать данные
@@ -194,7 +194,7 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
 
     red_neighbors_text = update.message.text.strip()
     if not red_neighbors_text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите целое число для количества соседей.")
+        await update.message.reply_text("Пожалуйста, введи целое число для количества соседей.")
         return GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
 
     red_neighbors = int(red_neighbors_text)
@@ -209,7 +209,7 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
 
     if current_index < len(red_tokens):
         next_token_number = red_tokens[current_index]
-        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {next_token_number}:")
+        await update.message.reply_text(f"Введи количество красных соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
     else:
         # Все данные введены, сохраняем изменения и отправляем обновлённую раскладку
@@ -241,14 +241,14 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """
     text = update.message.text.strip()
     if not text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите корректный номер жетона (целое число).")
+        await update.message.reply_text("Пожалуйста, введи корректный номер жетона (целое число).")
         return CONFIRM_KILL  # Остаемся в этом же состоянии для повторного ввода
 
     token_id = int(text)
 
     token = get_token_by_id(token_id)
     if not token:
-        await update.message.reply_text(f"Жетон с номером {token_id} не найден в базе данных. Пожалуйста, выберите существующий жетон.")
+        await update.message.reply_text(f"Жетон с номером {token_id} не найден в базе данных. Пожалуйста, выбери существующий жетон.")
         return CONFIRM_KILL
 
     # Проверка, является ли жетон демоном
@@ -264,7 +264,7 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         )
 
         await update.message.reply_text(
-            "💀 Вы зачем-то убили демона. Что ж, это победа синего города.\n"
+            "💀 Ты зачем-то убил демона. Что ж, это победа синего города.\n"
             "/start, чтобы начать игру заново"
         )
         logger.info(f"Модератор убил демона (жетон {token_id}). Победа синего города.")
