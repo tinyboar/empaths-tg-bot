@@ -17,6 +17,7 @@ from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIR
 import logging
 
 from player_manager import invite_player
+from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,8 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
     await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен.")
 
+    count_red_neighbors_of_blue_tokens()
+    
     # Отправляем сообщение модератору о выборе игрока
     moderators = get_moderators()
     if moderators:
@@ -90,6 +93,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
         moderator_id = moderator['id']
         message = f"Игрок @{username} выбрал для казни жетон {token_id}."
         try:
+            await show_game_set(context, moderator_id, moderator=True)
             await context.bot.send_message(chat_id=moderator_id, text=message)
             logger.info(f"Модератору отправлено сообщение о выборе игрока @{username}.")
         except Exception as e:
@@ -102,7 +106,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await context.bot.send_message(
         chat_id=moderator_id,
-        text="Игрок сделал свой выбор. Отправьте 'Ввести соседей', чтобы продолжить игру."
+        text="/enter_neighbors, ввести соседей для красных жетонов"
     )
 
     return ConversationHandler.END
@@ -216,6 +220,6 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     update_token_kill(token_id)
     logger.info(f"Жетон {token_id} выбран для убийства и помечен как убит.")
     await update.message.reply_text(f"Жетон {token_id} выбран для убийства и его статус обновлен.")
-
+    count_red_neighbors_of_blue_tokens()
     # Переход к функции invite_player для передачи хода игроку
     return await invite_player(update, context)

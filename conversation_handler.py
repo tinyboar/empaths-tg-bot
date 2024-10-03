@@ -46,13 +46,11 @@ from constants import (
 )
 
 # ConversationHandler для модератора
-# ConversationHandler для модератора
-
 moderator_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('start', start),
-        MessageHandler(filters.TEXT & filters.Regex('^Ввести соседей$'), reenter_red_neighbors_for_red),
-        CommandHandler('kill_token', kill_token)  # Добавляем команду для выбора жетона на убийство
+        CommandHandler('enter_neighbors', reenter_red_neighbors_for_red),
+        CommandHandler('kill_token', kill_token)
     ],
     states={
         HANDLE_PASSWORD: [
@@ -90,7 +88,7 @@ moderator_conv_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, reenter_red_neighbors_for_red)
         ],
         CONFIRM_KILL: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_kill)  # Обработка ввода номера жетона для убийства
+            MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_kill)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
