@@ -57,11 +57,8 @@ async def invite_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     moderator_userid = update.effective_user.id  # ID модератора
 
     context.user_data['player_username'] = player_username
-    message = (
-        f"/start - начать настройку заново. "
-        f"/pass_turn_to_player - передать ход игроку и отправить ему раскладку жетонов"
-    )
-    await update.message.reply_text(message)
+    await update.message.reply_text("/start - начать настройку заново.")
+    await update.message.reply_text("/pass_turn_to_player - передать ход игроку и отправить ему раскладку жетонов")
 
     return CONFIRM_INVITE
 
@@ -83,7 +80,7 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         await context.bot.send_message(
             chat_id=player_userid,
-            text="Введите команду /execute_token, чтобы выбрать жетон, который вы собираетесь казнить."
+            text="/execute_token - выбрать жетон для казни."
         )
 
         return ConversationHandler.END

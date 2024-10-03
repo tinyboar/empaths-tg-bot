@@ -10,7 +10,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from database import get_latest_game_set, get_all_tokens
 from distributions import POSITIONS_MAP
-
+from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 logger = logging.getLogger(__name__)
 
 FONT_PATH = os.path.join(os.path.dirname(__file__), 'fonts', 'DejaVuSans.ttf')
@@ -28,6 +28,8 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
     Если moderator=False, отображает все живые жетоны одного цвета.
     Мертвые жетоны отображаются серым цветом без значения red_neighbors.
     """
+    count_red_neighbors_of_blue_tokens()
+    
     game_set = get_latest_game_set()
 
     if game_set:
@@ -87,11 +89,8 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
                     # Игрок видит все живые жетоны одного цвета
                     tokens_colors.append('lightblue')  # Например, светло-синий для всех живых жетонов
 
-                # Добавляем red_neighbors только если жетон жив и показываем его модератору
-                if alive:
-                    red_neighbors_list.append(red_neighbors)
-                else:
-                    red_neighbors_list.append(None)
+                # Добавляем red_neighbors для всех живых жетонов (и для игрока, и для модератора)
+                red_neighbors_list.append(red_neighbors)
 
         # Рассчитываем позиции жетонов по кругу
         image_size = 500  # Размер изображения
@@ -149,8 +148,8 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
             number_y = y - number_height / 2
             draw.text((number_x, number_y), token_number, fill='black', font=font)
 
-            # Значение red_neighbors справа от жетона (только для живых жетонов и модераторов)
-            if red_neighbors_list[i] is not None and moderator:
+            # Значение red_neighbors справа от жетона (только для живых жетонов)
+            if red_neighbors_list[i] is not None:
                 red_neighbors = red_neighbors_list[i]
                 red_neighbors_text = str(red_neighbors)
                 rn_width, rn_height = draw.textsize(red_neighbors_text, font=font)

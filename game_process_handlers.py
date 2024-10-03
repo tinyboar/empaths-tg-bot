@@ -17,7 +17,6 @@ from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIR
 import logging
 
 from player_manager import invite_player
-from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +81,9 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     # Если жетон найден, обновляем его статус на "убит"
     update_token_kill(token_id)
     logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
-    await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен.")
     await show_game_set(context, user_id, moderator=False)
+    await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен. Ждем ход модератора..")
 
-    count_red_neighbors_of_blue_tokens()
     
     # Отправляем сообщение модератору о выборе игрока
     moderators = get_moderators()
@@ -221,7 +219,6 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     update_token_kill(token_id)
     logger.info(f"Жетон {token_id} выбран для убийства и помечен как убит.")
     await update.message.reply_text(f"Жетон {token_id} выбран для убийства и его статус обновлен.")
-    count_red_neighbors_of_blue_tokens()
     await show_game_set(context, update.effective_user.id, moderator=True)
     # Переход к функции invite_player для передачи хода игроку
     return await invite_player(update, context)

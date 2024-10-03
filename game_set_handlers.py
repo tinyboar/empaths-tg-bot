@@ -18,7 +18,7 @@ from database import (
 import logging
 from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
 from render_game_set import show_game_set
-from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
+
 from player_manager import invite_player
 
 logger = logging.getLogger(__name__)
@@ -160,7 +160,6 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(f"Жетон номер {token_number} теперь является демоном.")
 
     # Вызываем функцию для подсчёта красных соседей у синих жетонов
-    count_red_neighbors_of_blue_tokens()
     logger.info("Подсчёт красных соседей для синих жетонов завершён.")
     player_id = update.effective_user.id
     await show_game_set(context, player_id, moderator=True)
@@ -234,7 +233,6 @@ async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     is_moderator = user_data.get('moderator', False)
-    count_red_neighbors_of_blue_tokens()
 
     if is_moderator:
         await show_game_set(update, context, moderator=True)
