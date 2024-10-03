@@ -82,6 +82,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     # Проверка, является ли выбранный жетон демоном
     if token['character'] == 'demon':
         # Сообщение игроку о победе
+        await show_game_set(context, user_id, moderator=True)
         await update.message.reply_text("🏆 Вы казнили демона, победа синего города!")
 
         # Сообщение модератору о победе синих
