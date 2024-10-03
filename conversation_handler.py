@@ -25,7 +25,9 @@ from player_manager import (
 from game_process_handlers import (
     start_game,
     execute_token_player,
-    reenter_red_neighbors_for_red
+    reenter_red_neighbors_for_red,
+    kill_token,
+    confirm_kill
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -39,14 +41,18 @@ from constants import (
     CONFIRM_INVITE,
     START_GAME,
     EXECUTE_TOKEN,
-    GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
+    GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME,
+    CONFIRM_KILL
 )
 
 # ConversationHandler для модератора
+# ConversationHandler для модератора
+
 moderator_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('start', start),
-        MessageHandler(filters.TEXT & filters.Regex('^Ввести соседей$'), reenter_red_neighbors_for_red)
+        MessageHandler(filters.TEXT & filters.Regex('^Ввести соседей$'), reenter_red_neighbors_for_red),
+        CommandHandler('kill_token', kill_token)  # Добавляем команду для выбора жетона на убийство
     ],
     states={
         HANDLE_PASSWORD: [
@@ -83,13 +89,16 @@ moderator_conv_handler = ConversationHandler(
         GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, reenter_red_neighbors_for_red)
         ],
-
+        CONFIRM_KILL: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_kill)  # Обработка ввода номера жетона для убийства
+        ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
     allow_reentry=True,
     per_chat=False,
     per_user=True
 )
+
 
 # ConversationHandler для игрока
 player_conv_handler = ConversationHandler(

@@ -7,11 +7,13 @@ from database import (
     update_user_on_game,
     get_moderators,
     get_latest_game_set,
+    get_token_by_id,
     get_red_tokens,
-    update_token_red_neighbors
+    update_token_red_neighbors,
+    update_token_kill
 )
 from render_game_set import show_game_set
-from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE
+from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE, CONFIRM_KILL
 import logging
 
 from player_manager import invite_player
@@ -70,10 +72,18 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
 
     token_id = int(text)
 
-    # Получаем информацию об игроке
-    player = get_user_by_id(user_id)
+    # Проверяем, существует ли жетон в базе данных
+    token = get_token_by_id(token_id)
+    if not token:
+        await update.message.reply_text(f"Жетон с номером {token_id} не найден в базе данных. Пожалуйста, выберите существующий жетон.")
+        return EXECUTE_TOKEN
 
-    # Отправляем сообщение модератору
+    # Если жетон найден, обновляем его статус на "убит"
+    update_token_kill(token_id)
+    logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
+    await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен.")
+
+    # Отправляем сообщение модератору о выборе игрока
     moderators = get_moderators()
     if moderators:
         moderator = moderators[0]
@@ -87,7 +97,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         logger.warning("Модератор не найден для отправки сообщения.")
 
-    await update.message.reply_text("Ваш выбор принят. Спасибо!")
+    # Переход к следующему шагу - ожидаем действия модератора
     context.bot_data['awaiting_red_neighbors'] = True
 
     await context.bot.send_message(
@@ -184,7 +194,7 @@ async def kill_token(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Запрашивает у модератора выбор жетона для убийства.
     """
     await update.message.reply_text("Пожалуйста, выберите жетон для убийства, введя его номер:")
-    return CONFIRM_INVITE
+    return CONFIRM_KILL  # Возвращаем состояние CONFIRM_KILL для ожидания ввода номера жетона
 
 async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -193,13 +203,19 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     text = update.message.text.strip()
     if not text.isdigit():
         await update.message.reply_text("Пожалуйста, введите корректный номер жетона (целое число).")
-        return CONFIRM_INVITE
+        return CONFIRM_KILL  # Остаемся в этом же состоянии для повторного ввода
 
     token_id = int(text)
 
-    # Логируем выбор модератора
-    logger.info(f"Модератор выбрал жетон {token_id} для убийства.")
-    await update.message.reply_text(f"Жетон {token_id} выбран для убийства.")
+    token = get_token_by_id(token_id)
+    if not token:
+        await update.message.reply_text(f"Жетон с номером {token_id} не найден в базе данных. Пожалуйста, выберите существующий жетон.")
+        return CONFIRM_KILL
+
+    # Обновляем статус жетона на "убит"
+    update_token_kill(token_id)
+    logger.info(f"Жетон {token_id} выбран для убийства и помечен как убит.")
+    await update.message.reply_text(f"Жетон {token_id} выбран для убийства и его статус обновлен.")
 
     # Переход к функции invite_player для передачи хода игроку
     return await invite_player(update, context)

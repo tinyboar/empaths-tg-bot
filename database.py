@@ -151,6 +151,27 @@ def get_all_tokens(db_path='empaths.db'):
     conn.close()
     return [dict(token) for token in tokens]
 
+
+def get_token_by_id(token_id, db_path='empaths.db'):
+    """
+    Получает информацию о жетоне по ID.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, alignment, character, red_neighbors, alive FROM tokens WHERE id = ?', (token_id,))
+    token = cursor.fetchone()
+    conn.close()
+    if token:
+        return {
+            'id': token[0],
+            'alignment': token[1],
+            'character': token[2],
+            'red_neighbors': token[3],
+            'alive': bool(token[3])
+        }
+    else:
+        return None
+    
 def update_token(token_id, alignment, character, red_neighbors, db_path='empaths.db'):
     """
     Обновляет жетон по его id.
@@ -195,18 +216,21 @@ def update_token_character(token_id, character, db_path='empaths.db'):
 
 def update_token_kill(token_id, db_path='empaths.db'):
     """
-    Обновляет поле character жетона по его id.
+    Обновляет поле alive жетона по его id.
     """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(
-        'UPDATE tokens SET alive = FALSE WHERE id = ?',
-        (token_id)
-    )
-    conn.commit()
-    conn.close()
-    logger.info(f"Жетон с id={token_id} обновлен. alive=False")
-    
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE tokens SET alive = 0 WHERE id = ?',
+            (token_id,)  # Обратите внимание на запятую, чтобы создать кортеж
+        )
+        conn.commit()
+        logger.info(f"Жетон с id={token_id} обновлен. alive=False")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении жетона: {e}")
+    finally:
+        conn.close()
 
 def get_red_tokens(db_path='empaths.db'):
     """

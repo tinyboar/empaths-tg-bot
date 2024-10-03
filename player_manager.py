@@ -58,8 +58,8 @@ async def invite_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     context.user_data['player_username'] = player_username
     message = (
-        f"Пригласить @{player_username}? Отправьте /start, чтобы начать настройку заново. "
-        f"Или отправьте 1, чтобы отправить игроку раскладку жетонов"
+        f"/start - начать настройку заново. "
+        f"1 - чтобы отправить игроку раскладку жетонов"
     )
     await update.message.reply_text(message)
 
