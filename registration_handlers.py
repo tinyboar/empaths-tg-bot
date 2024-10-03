@@ -3,7 +3,7 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from database import add_user, get_user_by_username, reset_user_game_state
+from database import add_user, get_user_by_username, reset_user_game_state, clear_game_set
 import logging
 from constants import HANDLE_PASSWORD, GET_USERNAME
 from game_set_handlers import set_up_game
@@ -41,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Сохраняем пользователя в базе данных и получаем флаг is_new_user
     is_new_user = add_user(username, userid)
     context.user_data['is_new_user'] = is_new_user
-
+    clear_game_set()
 
     await update.message.reply_text(
             f"Привет, {escape_html(username)}! Ты успешно зарегистрирован.\n"

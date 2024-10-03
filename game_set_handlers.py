@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from database import (
     add_game_set,
     clear_tokens,
+    clear_game_set,
     add_tokens,
     update_token_alignment,
     update_token_character,

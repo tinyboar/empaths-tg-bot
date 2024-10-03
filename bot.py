@@ -5,9 +5,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv() 
 from telegram.ext import (
-    ApplicationBuilder, 
-    CommandHandler, 
-    ConversationHandler
+    ApplicationBuilder,
 )
 from database import init_db
 from conversation_handler import moderator_conv_handler, player_conv_handler
@@ -32,16 +30,9 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 def main():
     init_db()
     application = ApplicationBuilder().token(TOKEN).build()
-
-    # Добавляем ConversationHandler для модератора
     application.add_handler(moderator_conv_handler)
-    
-    # Добавляем ConversationHandler для игрока
     application.add_handler(player_conv_handler)
-
-    # Добавляем обработчик ошибок
     application.add_error_handler(error_handler)
-    
     logger.info("Бот запускается...")
     application.run_polling()
 

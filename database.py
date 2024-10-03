@@ -112,15 +112,24 @@ def clear_tokens(db_path='empaths.db'):
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    # Очищаем таблицу
     cursor.execute("DELETE FROM tokens")
-    # Сбрасываем автоинкремент
     cursor.execute("DELETE FROM sqlite_sequence WHERE name='tokens'")
     conn.commit()
     conn.close()
     logger.info("Таблица tokens очищена и идентификаторы сброшены.")
 
-
+def clear_game_set(db_path='empaths.db'):
+    """
+    Очищает таблицу game_set и сбрасывает счетчик автоинкремента.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM game_set")
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='game_set'")
+    conn.commit()
+    conn.close()
+    logger.info("Таблица game_set очищена и идентификаторы сброшены.")
+    
 def add_tokens(tokens_list, db_path='empaths.db'):
     """
     Добавляет список жетонов в таблицу tokens.
