@@ -6,7 +6,7 @@ from database import get_user_by_username, get_moderators, update_user_on_game
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from constants import CONFIRM_INVITE, START_GAME
-from game_process_handlers import start_game
+from render_game_set import show_game_set
 
 logger = logging.getLogger(__name__)
 
@@ -70,52 +70,26 @@ async def confirm_invite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     Обрабатывает ответ модератора на предложение пригласить игрока.
     """
     text = update.message.text.strip()
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or user.first_name or "Unknown"
-
-    # Проверяем, является ли пользователь модератором
-    moderator = get_user_by_username(username)
-    if not moderator or not moderator.get('moderator', False):
-        await update.message.reply_text("Только модератор может подтвердить приглашение.")
-        return ConversationHandler.END
 
     if text == '1':
-        # Получаем username игрока
         player_username = context.user_data.get('player_username')
-        if not player_username:
-            await update.message.reply_text(
-                "Имя пользователя игрока не найдено. Пожалуйста, начните настройку заново с помощью /start."
-            )
-            return ConversationHandler.END
-
-        # Получаем информацию об игроке
         player = get_user_by_username(player_username)
-        if not player:
-            logger.error(f"Игрок с username {player_username} не найден.")
-            await update.message.reply_text(f"Игрок с именем @{player_username} не найден.")
-            return ConversationHandler.END
-
         player_userid = player['id']
 
-        # Обновляем поле on_game у модератора и игрока
-        update_user_on_game(user_id, True)        # ID модератора
-        update_user_on_game(player_userid, True)  # ID игрока
-        logger.info(f"on_game обновлено для модератора {user_id} и игрока {player_userid}")
+        # Обновляем статус и отправляем раскладку жетонов игроку
+        update_user_on_game(update.effective_user.id, True)        # Обновляем статус модератора
+        update_user_on_game(player_userid, True)                   # Обновляем статус игрока
 
-        message = (
-            "Модератор настроил игру. Вы готовы начать? "
-            "Отправьте любое сообщение, чтобы получить раскладку жетонов"
+        await show_game_set(context, player_userid, moderator=False)
+        logger.info(f"Игроку @{player_username} ({player_userid}) отправлена раскладка жетонов.")
+        await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
+
+        # Запуск команды /execute_token для выбора жетона игроком
+        await context.bot.send_message(
+            chat_id=player_userid,
+            text="Введите команду /execute_token, чтобы выбрать жетон, который вы собираетесь казнить."
         )
-        try:
-            await context.bot.send_message(chat_id=player_userid, text=message)
-            logger.info(f"Игроку @{player_username} ({player_userid}) отправлено приглашение начать игру.")
-            await update.message.reply_text(f"Игроку @{player_username} отправлено приглашение.")
-        except Exception as e:
-            logger.error(f"Не удалось отправить сообщение игроку @{player_username} ({player_userid}): {e}")
-            await update.message.reply_text(f"Не удалось отправить сообщение игроку @{player_username}.")
 
-        # Возвращаем ConversationHandler.END, так как разговор с модератором на этом этапе завершён
         return ConversationHandler.END
     else:
         await update.message.reply_text(

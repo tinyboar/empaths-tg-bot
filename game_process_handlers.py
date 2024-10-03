@@ -11,8 +11,10 @@ from database import (
     update_token_red_neighbors
 )
 from render_game_set import show_game_set
-from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME
+from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE
 import logging
+
+from player_manager import invite_player
 
 logger = logging.getLogger(__name__)
 
@@ -56,19 +58,20 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     username = user.username or user.first_name or "Unknown"
     text = update.message.text.strip()
 
-    # Проверяем, что введено число
+    # Проверяем, была ли введена команда /execute_token
+    if text == "/execute_token":
+        await update.message.reply_text("Введите номер жетона, который вы собираетесь казнить:")
+        return EXECUTE_TOKEN
+
+    # Проверяем, что введено число (после команды /execute_token)
     if not text.isdigit():
         await update.message.reply_text("Пожалуйста, введите корректный номер жетона (целое число).")
-        return EXECUTE_TOKEN  # Остаёмся в том же состоянии
+        return EXECUTE_TOKEN
 
     token_id = int(text)
 
     # Получаем информацию об игроке
     player = get_user_by_id(user_id)
-    if not player:
-        logger.warning(f"Пользователь {username} ({user_id}) не найден в базе данных.")
-        await update.message.reply_text("Ваши данные не найдены. Пожалуйста, начните игру заново.")
-        return ConversationHandler.END
 
     # Отправляем сообщение модератору
     moderators = get_moderators()
@@ -92,7 +95,6 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
         text="Игрок сделал свой выбор. Отправьте 'Ввести соседей', чтобы продолжить игру."
     )
 
-    # Завершаем разговор с игроком
     return ConversationHandler.END
 
 async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -135,7 +137,9 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
         context.user_data.pop('awaiting_red_neighbors_input', None)
         context.user_data.pop('red_tokens', None)
         context.user_data.pop('current_red_token_index', None)
-        return ConversationHandler.END
+
+        # Завершаем разговор модератора и запускаем приглашение игрока
+        return await invite_player(update, context)
 
     token_number = red_tokens[current_index]
 
@@ -165,22 +169,12 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
 
         # Отправляем обновлённую раскладку модератору
         await show_game_set(context, update.effective_user.id, moderator=True)
-        # Отправляем обновлённую раскладку игроку
-        await show_game_set(context, player_id, moderator=False)
-
-        # Отправляем сообщение игроку с просьбой выбрать следующий жетон для казни
-        await context.bot.send_message(
-            chat_id=player_id,
-            text="Введите номер следующего жетона, который вы собираетесь казнить:",
-            parse_mode='MarkdownV2'
-        )
-
+        
         # Сбрасываем флаги и очищаем данные
         context.bot_data['awaiting_red_neighbors'] = False
         context.user_data.pop('awaiting_red_neighbors_input', None)
         context.user_data.pop('red_tokens', None)
         context.user_data.pop('current_red_token_index', None)
 
-        # Завершаем разговор модератора
-        return ConversationHandler.END
-
+        # Переход к функции invite_player для передачи хода игроку
+        return await invite_player(update, context)

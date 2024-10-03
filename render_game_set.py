@@ -13,7 +13,6 @@ from distributions import POSITIONS_MAP
 
 logger = logging.getLogger(__name__)
 
-# Путь к шрифтам
 FONT_PATH = os.path.join(os.path.dirname(__file__), 'fonts', 'DejaVuSans.ttf')
 
 def escape_markdown_v2(text: str) -> str:

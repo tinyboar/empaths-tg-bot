@@ -91,9 +91,11 @@ moderator_conv_handler = ConversationHandler(
     per_user=True
 )
 
-# Новый ConversationHandler для игрока
+# ConversationHandler для игрока
 player_conv_handler = ConversationHandler(
-    entry_points=[MessageHandler(filters.ALL & ~filters.COMMAND, start_game)],
+    entry_points=[
+        CommandHandler('execute_token', execute_token_player)  # Добавляем команду /execute_token как входную точку
+    ],
     states={
         EXECUTE_TOKEN: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, execute_token_player)
