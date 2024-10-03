@@ -106,6 +106,14 @@ async def random_red_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     tokens_count = context.user_data['game_set']['tokens_count']
     red_count = context.user_data['game_set']['red_count']
 
+    player_username = context.user_data['game_set']['player_username']
+    player = get_user_by_username(player_username)
+    player_id = player['id']
+    await context.bot.send_message(
+        chat_id=player_id,
+        text="Модератор выбрал рандомную рассадку."
+    )
+
     # Генерируем случайные индексы для красных жетонов
     red_indices = random.sample(range(1, tokens_count + 1), red_count)
 
@@ -131,12 +139,23 @@ async def random_red_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return GET_RED_TOKEN_RED_NEIGHBORS
 
 
+
 async def manual_entry_red_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
     Начинает процесс ручного выбора красных жетонов.
     """
     logger.debug("Функция manual_entry_red_set вызвана")
+    
+    player_username = context.user_data['game_set']['player_username']
+    player = get_user_by_username(player_username)
+    player_id = player['id']
 
+    # Отправляем сообщение выбранному игроку о выборе случайной рассадки
+    await context.bot.send_message(
+        chat_id=player_id,
+        text="Модератор рассаживает красных вручную."
+    )
+    
     red_count = context.user_data['game_set']['red_count']
     context.user_data['selected_red_tokens'] = []
     context.user_data['current_red_token_index'] = 1  # Индекс текущего запрашиваемого красного жетона
