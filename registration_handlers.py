@@ -12,6 +12,9 @@ from player_manager import (
     player_start_game_notice
 )
 
+from utils import escape_html
+
+
 MODERATOR_PASSWORD = os.getenv("MODERATOR_PASSWORD")
 if not MODERATOR_PASSWORD:
     raise ValueError("Переменная окружения MODERATOR_PASSWORD не установлена.")
@@ -39,10 +42,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     is_new_user = add_user(username, userid)
     context.user_data['is_new_user'] = is_new_user
 
+
     await update.message.reply_text(
-        f"Привет, {username}! Ты успешно зарегистрирован.\n\n"
-        "Если вы модератор, введите пароль. Чтобы продолжить как игрок нажми /skip"
-    )
+            f"Привет, {escape_html(username)}! Ты успешно зарегистрирован.\n\n"
+            "/skip чтобы продолжить как игрок",
+            parse_mode='HTML'
+        )
 
     return HANDLE_PASSWORD
 

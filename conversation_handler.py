@@ -29,7 +29,8 @@ from game_process_handlers import (
     execute_token_player,
     reenter_red_neighbors_for_red,
     kill_token,
-    confirm_kill
+    confirm_kill,
+    skip_enter_neighbors,
 )
 from constants import (
     HANDLE_PASSWORD,
@@ -53,7 +54,8 @@ moderator_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('start', start),
         CommandHandler('enter_neighbors', reenter_red_neighbors_for_red),
-        CommandHandler('kill_token', kill_token)
+        CommandHandler('kill_token', kill_token),
+        CommandHandler('skip_enter_neighbors', skip_enter_neighbors)
     ],
     states={
         HANDLE_PASSWORD: [
@@ -100,7 +102,6 @@ moderator_conv_handler = ConversationHandler(
     per_chat=False,
     per_user=True
 )
-
 
 
 # ConversationHandler для игрока

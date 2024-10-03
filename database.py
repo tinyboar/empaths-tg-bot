@@ -3,16 +3,9 @@ import logging
 import sqlite3
 from db_queries import (
     CREATE_USERS_TABLE,
-    INSERT_USER,
-    UPDATE_USER_AS_MODERATOR,
-    UPDATE_USER_USERNAME,
     CREATE_GAME_SET_TABLE,
-    INSERT_GAME_SET,
-    UPDATE_GAME_SET,
     CREATE_TOKENS_TABLE,
     INSERT_TOKEN,
-    DELETE_ALL_TOKENS,
-    SELECT_ALL_TOKENS,
     UPDATE_TOKEN
 )
 
@@ -244,6 +237,28 @@ def get_red_tokens(db_path='empaths.db'):
     red_token_ids = [row[0] for row in rows]
     logger.info(f"get_red_tokens: retrieved red tokens: {red_token_ids}")
     return red_token_ids
+
+
+
+def get_alive_tokens(db_path='empaths.db'):
+    """
+    Возвращает список номеров живых жетонов из базы данных.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM tokens WHERE alive = 1")
+        rows = cursor.fetchall()
+        alive_token_ids = [row[0] for row in rows]
+        logger.info(f"get_alive_tokens: retrieved alive tokens: {alive_token_ids}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error occurred: {e}")
+        alive_token_ids = []
+    finally:
+        if conn:
+            conn.close()
+
+    return alive_token_ids
 
 
 def update_token_red_neighbors(token_id, red_neighbors, db_path='empaths.db'):

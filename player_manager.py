@@ -57,8 +57,10 @@ async def invite_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     moderator_userid = update.effective_user.id  # ID модератора
 
     context.user_data['player_username'] = player_username
-    await update.message.reply_text("/start - начать настройку заново.")
-    await update.message.reply_text("/pass_turn_to_player - передать ход игроку и отправить ему раскладку жетонов")
+    await update.message.reply_text(
+        "/start - начать настройку заново.\n\n"
+        "/pass_turn_to_player - передать ход игроку и отправить ему раскладку жетонов", 
+        parse_mode='HTML')
 
     return CONFIRM_INVITE
 

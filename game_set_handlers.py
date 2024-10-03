@@ -36,7 +36,7 @@ async def get_tokens_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return GET_TOKENS_COUNT
 
     tokens_count = int(tokens_count_text)
-    # Инициализируем game_set, если его еще нет в user_data
+
     if 'game_set' not in context.user_data:
         context.user_data['game_set'] = {}
     context.user_data['game_set']['tokens_count'] = tokens_count
@@ -91,9 +91,10 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Предложение модератору выбрать метод расстановки красных жетонов
     await update.message.reply_text(
-        "Введите команду /random_red_set для случайной рассадки красных жетонов и демона или "
-        "/manual_entry_red_set для ручного выбора."
-    )
+        "/random_red_set для случайной рассадки красных жетонов и демона\n\n",
+        # "/manual_entry_red_set для ручного выбора.",
+        parse_mode='HTML'
+        )
     return RANDOM_RED_SET
 
 

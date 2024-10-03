@@ -3,7 +3,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from database import (
-    get_user_by_id,
+    get_alive_tokens,
     update_user_on_game,
     get_moderators,
     get_latest_game_set,
@@ -13,10 +13,11 @@ from database import (
     update_token_kill
 )
 from render_game_set import show_game_set
-from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE, CONFIRM_KILL
+from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE, CONFIRM_KILL, SKIP_ENTER_NEIGHBORS
 import logging
 
 from player_manager import invite_player
+from utils import escape_html
 
 logger = logging.getLogger(__name__)
 
@@ -78,14 +79,33 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(f"Жетон с номером {token_id} не найден в базе данных. Пожалуйста, выберите существующий жетон.")
         return EXECUTE_TOKEN
 
-    # Если жетон найден, обновляем его статус на "убит"
+    # Проверка, является ли выбранный жетон демоном
+    if token['character'] == 'demon':
+        # Сообщение игроку о победе
+        await update.message.reply_text("🏆 Вы казнили демона, победа синего города!")
+
+        # Сообщение модератору о победе синих
+        moderators = get_moderators()
+        if moderators:
+            moderator = moderators[0]
+            moderator_id = moderator['id']
+            await context.bot.send_message(
+                chat_id=moderator_id,
+                text=f"💀 Игрок @{username} казнил демона. Победа синих. Нажмите /start, чтобы начать игру заново"
+            )
+            logger.info(f"Игрок @{username} казнил демона. Победа синих объявлена.")
+        else:
+            logger.warning("Модератор не найден для отправки сообщения.")
+
+        # Завершение игры
+        return ConversationHandler.END
+
+    # Если жетон не является демоном, обновляем его статус на "убит"
     update_token_kill(token_id)
     logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
     await show_game_set(context, user_id, moderator=False)
     await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен. Ждем ход модератора..")
 
-    
-    # Отправляем сообщение модератору о выборе игрока
     moderators = get_moderators()
     if moderators:
         moderator = moderators[0]
@@ -100,15 +120,32 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         logger.warning("Модератор не найден для отправки сообщения.")
 
-    # Переход к следующему шагу - ожидаем действия модератора
+    is_red_won = await red_won(context)
+    if is_red_won:
+        return ConversationHandler.END
+    
     context.bot_data['awaiting_red_neighbors'] = True
 
     await context.bot.send_message(
         chat_id=moderator_id,
-        text="/enter_neighbors, ввести соседей для красных жетонов"
+        text="/enter_neighbors, ввести соседей для красных жетонов\n\n"
+        "/skip_enter_neighbors, пропустить шаг выбора соседей",
+        parse_mode='HTML'
     )
 
     return ConversationHandler.END
+
+
+async def skip_enter_neighbors(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Пропускает ввод количества соседей для красных жетонов и переходит к этапу выбора жетона для убийства.
+    """
+    await update.message.reply_text("Вы пропустили ввод количества соседей для красных жетонов. Переходим к выбору жетона для убийства.")
+    logger.info("Модератор пропустил ввод соседей, переход к выбору жетона для убийства.")
+
+    # Переход к функции kill_token для выбора жетона на убийство
+    return await kill_token(update, context)
+
 
 async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -215,10 +252,70 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text(f"Жетон с номером {token_id} не найден в базе данных. Пожалуйста, выберите существующий жетон.")
         return CONFIRM_KILL
 
+    # Проверка, является ли жетон демоном
+    if token['character'] == 'demon':
+        # Сообщение игроку о том, что демона убили
+        game_set = get_latest_game_set()
+        player_id = game_set.get('player_id')
+        
+        await context.bot.send_message(
+            chat_id=player_id,
+            text="🏆 Модератор зачем-то убил демона, победа синего города!"
+        )
+
+        # Сообщение модератору о победе синих
+        await update.message.reply_text(
+            "💀 Вы зачем-то убили демона. Что ж, это победа синего города. /start, чтобы начать игру заново"
+        )
+        logger.info(f"Модератор убил демона (жетон {token_id}). Победа синего города.")
+
+        return ConversationHandler.END
+
     # Обновляем статус жетона на "убит"
     update_token_kill(token_id)
     logger.info(f"Жетон {token_id} выбран для убийства и помечен как убит.")
     await update.message.reply_text(f"Жетон {token_id} выбран для убийства и его статус обновлен.")
     await show_game_set(context, update.effective_user.id, moderator=True)
-    # Переход к функции invite_player для передачи хода игроку
+
+    # Проверяем, не закончилась ли игра победой красных
+    is_red_won = await red_won(context)
+    
+    if is_red_won:
+        return ConversationHandler.END
+
     return await invite_player(update, context)
+
+async def red_won(context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """
+    Проверяет, остались ли в игре два или меньше жетонов, и возвращает True, если победа красных.
+    """
+    alive_tokens = get_alive_tokens()  # Получаем список живых жетонов
+
+    if len(alive_tokens) <= 2:
+        # Получаем информацию о текущем игроке и модераторе
+        game_set = get_latest_game_set()
+        player_id = game_set.get('player_id')
+
+        moderators = get_moderators()
+        if moderators:
+            moderator = moderators[0]
+            moderator_id = moderator['id']
+
+            await show_game_set(context, moderator_id, moderator=True)
+            await context.bot.send_message(
+                chat_id=moderator_id,
+                text="🔥 В игре осталось всего 2 жетона, это победа красных!\n\n/start чтобы начать заново",
+                parse_mode='HTML'
+            )
+
+            await show_game_set(context, player_id, moderator=True)
+            await context.bot.send_message(
+                chat_id=player_id,
+                text="😞 Ты так и не убил демона, это победа красного города 🫠"
+            )
+
+            logger.info("Объявлена победа красного города, осталось 2 или меньше жетонов.")
+        
+        return True
+
+    return False
