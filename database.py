@@ -23,6 +23,19 @@ def init_db(db_path='empaths.db'):
     conn.commit()
     conn.close()
 
+
+def get_all_users(db_path='empaths.db'):
+    """
+    Возвращает список всех пользователей из базы данных.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT username, id FROM users')
+    users = cursor.fetchall()
+    conn.close()
+    return [{'username': row[0], 'id': row[1]} for row in users]
+
+
 def add_user(username, userid, moderator=False, db_path='empaths.db'):
     """
     Добавляет нового пользователя в базу данных. Если пользователь уже существует, обновляет его информацию.

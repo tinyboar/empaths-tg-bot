@@ -3,7 +3,7 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from database import add_user, get_user_by_username, reset_user_game_state, clear_game_set
+from database import add_user, get_user_by_username, reset_user_game_state, clear_game_set, get_all_users
 import logging
 from constants import HANDLE_PASSWORD, GET_USERNAME
 from game_set_handlers import set_up_game
@@ -66,12 +66,19 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if password == MODERATOR_PASSWORD:
         add_user(username, userid, moderator=True)
+
+        # Получаем список пользователей из базы данных
+        users = get_all_users()
+        users_list = "\n".join([f"@{user['username']} (ID: {user['id']})" for user in users])
+
         await update.message.reply_text(
             "Теперь ты модератор!\n\n"
-            "Введи имя пользователя, с которым собираешься играть(например @username):\n\n"
-            "ВНИМАНИЕ: перед вводом имени надо чтобы этот пользователь начал использовать бота",
+            "Введи имя пользователя, с которым собираешься играть (например @username):\n\n"
+            "ВНИМАНИЕ: перед вводом имени надо чтобы этот пользователь начал использовать бота\n\n"
+            "Список зарегистрированных пользователей:\n"
+            f"{users_list}",
             parse_mode='HTML'
-            )
+        )
 
         return GET_USERNAME
     else:
@@ -80,7 +87,6 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return HANDLE_PASSWORD
 
-import re
 
 async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
