@@ -87,7 +87,8 @@ moderator_conv_handler = ConversationHandler(
     },
     fallbacks=[CommandHandler('cancel', cancel)],
     allow_reentry=True,
-    per_chat=False
+    per_chat=False,
+    per_user=True
 )
 
 # Новый ConversationHandler для игрока

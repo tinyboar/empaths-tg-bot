@@ -168,12 +168,19 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
         # Отправляем обновлённую раскладку игроку
         await show_game_set(context, player_id, moderator=False)
 
+        # Отправляем сообщение игроку с просьбой выбрать следующий жетон для казни
+        await context.bot.send_message(
+            chat_id=player_id,
+            text="Введите номер следующего жетона, который вы собираетесь казнить:",
+            parse_mode='MarkdownV2'
+        )
+
         # Сбрасываем флаги и очищаем данные
         context.bot_data['awaiting_red_neighbors'] = False
         context.user_data.pop('awaiting_red_neighbors_input', None)
         context.user_data.pop('red_tokens', None)
         context.user_data.pop('current_red_token_index', None)
 
-        # Завершаем разговор
+        # Завершаем разговор модератора
         return ConversationHandler.END
 
