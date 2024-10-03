@@ -25,7 +25,7 @@ async def set_up_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     Начинает настройку игры после ввода имени пользователя.
     """
     await update.message.reply_text(
-        "Введи количество жетонов(это общее количетсво жетонов за столом):"
+        "Введи количество жетонов(это общее количество жетонов за столом):"
         )
     return GET_TOKENS_COUNT
 

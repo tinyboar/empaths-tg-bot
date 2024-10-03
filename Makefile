@@ -25,7 +25,7 @@ init-db:
 db:
 	docker-compose exec telegram_bot sqlite3 /app/empaths.db
 
-clean-rebuild:
+rebuild:
 	docker-compose down -v --rmi all --remove-orphans
 	docker-compose build
 	docker-compose up -d
