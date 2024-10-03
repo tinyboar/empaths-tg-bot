@@ -20,6 +20,10 @@ from game_set_handlers import (
     get_red_token_red_neighbors,
     random_red_set,
     manual_entry_red_set,
+    make_drunk,
+    get_drunk_token_number,
+    set_drunk_red_neighbors
+    
 )
 from player_manager import (
     confirm_invite,
@@ -46,7 +50,10 @@ from constants import (
     EXECUTE_TOKEN,
     GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME,
     CONFIRM_KILL,
-    RANDOM_RED_SET
+    RANDOM_RED_SET,
+    MAKE_DRUNK,
+    GET_DRUNK_TOKEN_NUMBER,
+    SET_DRUNK_RED_NEIGHBORS
 )
 
 # ConversationHandler для модератора
@@ -95,6 +102,15 @@ moderator_conv_handler = ConversationHandler(
         ],
         CONFIRM_KILL: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_kill)
+        ],
+        MAKE_DRUNK: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, make_drunk)
+        ],
+        GET_DRUNK_TOKEN_NUMBER: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, get_drunk_token_number)
+        ],
+        SET_DRUNK_RED_NEIGHBORS: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, set_drunk_red_neighbors)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],

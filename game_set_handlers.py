@@ -1,3 +1,5 @@
+# game_set_hendlers.py
+
 import random
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -11,10 +13,11 @@ from database import (
     get_latest_game_set,
     get_user_by_id,
     get_user_by_username,
-    update_token_red_neighbors
+    update_token_red_neighbors,
+    update_token_drunk
 )
 import logging
-from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS, RANDOM_RED_SET
+from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS, RANDOM_RED_SET, MAKE_DRUNK, GET_DRUNK_TOKEN_NUMBER, SET_DRUNK_RED_NEIGHBORS
 from render_game_set import show_game_set
 from player_manager import invite_player
 
@@ -94,7 +97,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Предложение модератору выбрать метод расстановки красных жетонов
     await update.message.reply_text(
-        "/random_red_set для случайной рассадки красных жетонов и демона\n\n",
+        "/random_red_set для случайной рассадки красных жетонов и демона\n\n"
         "/manual_entry_red_set для ручного выбора.",
         parse_mode='HTML'
         )
@@ -284,9 +287,58 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
         await update.message.reply_text(f"Введите количество красных соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS
     else:
-        player_id = update.effective_user.id
-        await show_game_set(context, player_id, moderator=True)
-        return await invite_player(update, context)
+        await make_drunk(update, context)
+        return MAKE_DRUNK
+
+
+async def make_drunk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Предлагает модератору выбрать номер жетона, который будет помечен как 'пьяный'.
+    """
+    await update.message.reply_text("Выберите номер жетона, который хотите пометить как 'пьяный':")
+    return GET_DRUNK_TOKEN_NUMBER
+    
+async def get_drunk_token_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Обрабатывает ввод номера 'пьяного' жетона.
+    """
+    token_number_text = update.message.text.strip()
+    if not token_number_text.isdigit():
+        await update.message.reply_text("Пожалуйста, введите номер жетона в виде целого числа.")
+        return GET_DRUNK_TOKEN_NUMBER
+
+    token_number = int(token_number_text)
+    context.user_data['drunk_token_number'] = token_number
+
+    # Устанавливаем поле drunk на True для выбранного жетона
+    update_token_drunk(token_number)
+    logger.info(f"Жетон {token_number} помечен как 'пьяный'.")
+
+    await update.message.reply_text("Введите количество красных соседей для этого жетона:")
+    return SET_DRUNK_RED_NEIGHBORS
+
+
+async def set_drunk_red_neighbors(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Устанавливает значение red_neighbors для выбранного 'пьяного' жетона.
+    """
+    red_neighbors_text = update.message.text.strip()
+    if not red_neighbors_text.isdigit():
+        await update.message.reply_text("Пожалуйста, введите целое число для количества соседей.")
+        return SET_DRUNK_RED_NEIGHBORS
+
+    red_neighbors = int(red_neighbors_text)
+    token_number = context.user_data['drunk_token_number']
+
+    update_token_red_neighbors(token_number, red_neighbors)
+    logger.info(f"Жетон {token_number}: количество красных соседей обновлено до {red_neighbors}")
+
+    await update.message.reply_text(f"Жетон {token_number} теперь имеет {red_neighbors} красных соседей и помечен как 'пьяный'.")
+
+    player_id = update.effective_user.id
+    await show_game_set(context, player_id, moderator=True)
+
+    return await invite_player(update, context)
 
 
 async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

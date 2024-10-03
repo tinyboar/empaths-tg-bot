@@ -3,14 +3,13 @@
 import logging
 from database import get_all_tokens, update_token_red_neighbors
 
-# Настройка логирования
 logger = logging.getLogger(__name__)
 
 def count_red_neighbors_of_blue_tokens():
     """
     Рассчитывает количество красных соседей для каждого синего живого жетона
     и обновляет поле red_neighbors в базе данных.
-    Мёртвые жетоны пропускаются при подсчёте соседей.
+    Мёртвые жетоны и "пьяные" жетоны, для которых производится расчёт, пропускаются при обновлении.
     """
     # Получаем все жетоны из базы данных
     tokens = get_all_tokens()
@@ -21,12 +20,13 @@ def count_red_neighbors_of_blue_tokens():
             'alignment': token['alignment'],
             'character': token['character'],
             'red_neighbors': token['red_neighbors'],
-            'alive': token['alive']
+            'alive': token['alive'],
+            'drunk': token.get('drunk', False)
         } for token in tokens
     }
     
     tokens_count = len(tokens)
-    
+
     # Обходим каждый жетон
     for token_id in range(1, tokens_count + 1):
         token = tokens_dict.get(token_id)
@@ -35,6 +35,11 @@ def count_red_neighbors_of_blue_tokens():
             continue
 
         if token['alignment'] == 'blue' and token['alive']:
+            # Если жетон "пьяный", оставляем информацию без изменений
+            if token['drunk']:
+                logger.info(f"Жетон {token_id} помечен как 'пьяный'. Информация не изменяется.")
+                continue
+
             # Для синего живого жетона считаем количество красных соседей
             red_neighbors = 0
             
@@ -64,7 +69,7 @@ def count_red_neighbors_of_blue_tokens():
             else:
                 right_neighbor = None
 
-            # Проверяем цвет соседей
+            # Проверяем цвет соседей (включая "пьяные" жетоны)
             if left_neighbor and left_neighbor['alignment'] == 'red':
                 red_neighbors += 1
             if right_neighbor and right_neighbor['alignment'] == 'red':

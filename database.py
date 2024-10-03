@@ -348,3 +348,22 @@ def reset_user_game_state(user_id):
         logger.error(f"Ошибка при сбросе состояния on_game для пользователя с id {user_id}: {e}")
     finally:
         conn.close()
+
+
+def update_token_drunk(token_id, db_path='empaths.db'):
+    """
+    Устанавливает поле drunk у жетона на True по его id.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'UPDATE tokens SET drunk = 1 WHERE id = ?',
+            (token_id,)
+        )
+        conn.commit()
+        logger.info(f"Жетон с id={token_id} обновлен. drunk=True")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении жетона: {e}")
+    finally:
+        conn.close()
