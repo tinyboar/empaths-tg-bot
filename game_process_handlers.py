@@ -117,8 +117,8 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     # Если жетон не является демоном, обновляем его статус на "убит"
     update_token_kill(token_id)
     logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
-    count_red_neighbors_of_blue_tokens()
-    await show_game_set(context, user_id, moderator=False)
+    # count_red_neighbors_of_blue_tokens()
+    # await show_game_set(context, user_id, moderator=False)
     await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен. Ждем ход модератора..")
 
     moderators = get_moderators()

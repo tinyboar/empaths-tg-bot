@@ -56,17 +56,23 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
             return
 
         # Сортируем жетоны по id для соответствия порядку
-        tokens_data.sort(key=lambda x: x['id'])  # x['id'] это id жетона
+        tokens_data.sort(key=lambda x: x['id'])
 
         # Получаем список цветов жетонов и информацию о живости
         tokens_colors = []
         red_neighbors_list = []
+        drunk_tokens = []  # Список пьяных жетонов
+
         for token in tokens_data:
             token_id = token['id']
             alignment = token['alignment']
             character = token['character']
             red_neighbors = token['red_neighbors']
-            alive = token.get('alive', True)  # Предполагаем, что жетон жив, если поле отсутствует
+            alive = token.get('alive', True)
+            drunk = token.get('drunk', False)  # Проверяем, является ли жетон "пьяным"
+
+            if drunk and moderator:
+                drunk_tokens.append(token_id)  # Модератор видит, что жетон пьяный
 
             if not alive:
                 # Мертвый жетон: серый цвет и отсутствие red_neighbors
@@ -80,12 +86,12 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
                     elif alignment == 'red':
                         tokens_colors.append('red')  # Красные жетоны
                     elif alignment == 'blue':
-                        tokens_colors.append('lightblue')  # Синие жетоны отображаются светло-синим цветом
+                        tokens_colors.append('lightblue')  # Синие жетоны
                     else:
                         tokens_colors.append('grey')  # Неизвестные жетоны (на случай ошибки)
                 else:
                     # Игрок видит все живые жетоны одного цвета
-                    tokens_colors.append('lightblue')  # Например, светло-синий для всех живых жетонов
+                    tokens_colors.append('lightblue')
 
                 # Добавляем red_neighbors для всех живых жетонов (и для игрока, и для модератора)
                 red_neighbors_list.append(red_neighbors)
@@ -131,7 +137,7 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
             if i < len(tokens_colors):
                 token_color = tokens_colors[i]
             else:
-                token_color = 'grey'  # По умолчанию серый, если данных недостаточно
+                token_color = 'grey'
 
             # Рисуем жетон (круг)
             token_radius = 20
@@ -151,9 +157,31 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
                 red_neighbors = red_neighbors_list[i]
                 red_neighbors_text = str(red_neighbors)
                 rn_width, rn_height = draw.textsize(red_neighbors_text, font=font)
-                rn_x = x + token_radius + 5  # 5 пикселей отступ
+                rn_x = x + token_radius + 5
                 rn_y = y - rn_height / 2
                 draw.text((rn_x, rn_y), red_neighbors_text, fill='black', font=font)
+
+            # Если жетон "пьяный" и модератор смотрит на карту, рисуем символ бутылки
+            if moderator and (i + 1) in drunk_tokens:
+                # Рисуем символ бутылки на жетоне
+                bottle_width, bottle_height = 10, 20
+                bottle_x = x - bottle_width / 2
+                bottle_y = y - token_radius - bottle_height - 5
+                draw.rectangle(
+                    [bottle_x, bottle_y, bottle_x + bottle_width, bottle_y + bottle_height],
+                    fill='brown',
+                    outline='black'
+                )
+                # Нарисуем горлышко бутылки
+                neck_width = bottle_width * 0.4
+                neck_height = 7
+                neck_x = bottle_x + (bottle_width - neck_width) / 2
+                neck_y = bottle_y - neck_height
+                draw.rectangle(
+                    [neck_x, neck_y, neck_x + neck_width, neck_y + neck_height],
+                    fill='brown',
+                    outline='black'
+                )
 
         # Сохраняем изображение в байтовый поток
         image_bytes = io.BytesIO()
