@@ -29,7 +29,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def main():
     init_db()
-    application = ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder().token(TOKEN).read_timeout(60).write_timeout(60).build()
     application.add_handler(moderator_conv_handler)
     application.add_handler(player_conv_handler)
     application.add_error_handler(error_handler)

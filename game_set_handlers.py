@@ -94,7 +94,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Предложение модератору выбрать метод расстановки красных жетонов
     await update.message.reply_text(
-        "/random_red_set для случайной рассадки красных жетонов и демона\n\n",
+        "Нажми /random_red_set для случайной рассадки красных жетонов и демона\n\n",
         # "/manual_entry_red_set для ручного выбора.",
         parse_mode='HTML'
         )

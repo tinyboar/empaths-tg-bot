@@ -67,7 +67,8 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         add_user(username, userid, moderator=True)
         await update.message.reply_text(
             "Теперь ты модератор!\n\n"
-            "Введи имя пользователя, с которым собираешься играть(например @username):",
+            "Введи имя пользователя, с которым собираешься играть(например @username):\n\n"
+            "ВНИМАНИЕ: перед вводом имени надо чтобы этот пользователь начал использовать бота",
             parse_mode='HTML'
             )
 
