@@ -153,7 +153,7 @@ async def random_red_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data['current_red_token_index'] = 0
 
     first_red_token = red_indices[0]
-    await update.message.reply_text(f"Введите количество красных соседей для жетона номер {first_red_token}:")
+    await update.message.reply_text(f"Введи количество красных соседей для жетона номер {first_red_token}:")
     return GET_RED_TOKEN_RED_NEIGHBORS
 
 
@@ -267,7 +267,7 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
 
     # Запрашиваем количество соседей для первого красного жетона
     first_red_token = context.user_data['red_tokens'][0]
-    await update.message.reply_text(f"Введите количество красных соседей для жетона номер {first_red_token}:")
+    await update.message.reply_text(f"Введи количество красных соседей для жетона номер {first_red_token}:")
     return GET_RED_TOKEN_RED_NEIGHBORS
 
 
@@ -296,7 +296,7 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
 
     if current_index < len(red_tokens):
         next_token_number = red_tokens[current_index]
-        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {next_token_number}:")
+        await update.message.reply_text(f"Введи количество красных соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS
     else:
         await make_drunk(update, context)
