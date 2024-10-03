@@ -1,9 +1,64 @@
 # red_neighbors_handlers.py
 
 import logging
-from database import get_all_tokens, update_token_red_neighbors
+from telegram import Update
+from telegram.ext import ContextTypes
+from database import update_token_red_neighbors, update_token_drunk, get_all_tokens
+from render_game_set import show_game_set
+from player_manager import invite_player
+from constants import GET_DRUNK_TOKEN_NUMBER, SET_DRUNK_RED_NEIGHBORS
 
 logger = logging.getLogger(__name__)
+
+async def make_drunk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Предлагает модератору выбрать номер жетона, который будет помечен как 'пьяный'.
+    """
+    await update.message.reply_text("Выберите номер жетона, который хотите пометить как 'пьяный':")
+    return GET_DRUNK_TOKEN_NUMBER
+    
+async def get_drunk_token_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Обрабатывает ввод номера 'пьяного' жетона.
+    """
+    token_number_text = update.message.text.strip()
+    if not token_number_text.isdigit():
+        await update.message.reply_text("Пожалуйста, введите номер жетона в виде целого числа.")
+        return GET_DRUNK_TOKEN_NUMBER
+
+    token_number = int(token_number_text)
+    context.user_data['drunk_token_number'] = token_number
+
+    # Устанавливаем поле drunk на True для выбранного жетона
+    update_token_drunk(token_number)
+    logger.info(f"Жетон {token_number} помечен как 'пьяный'.")
+
+    await update.message.reply_text("Введите количество красных соседей для этого жетона:")
+    return SET_DRUNK_RED_NEIGHBORS
+
+async def set_drunk_red_neighbors(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Устанавливает значение red_neighbors для выбранного 'пьяного' жетона.
+    """
+    red_neighbors_text = update.message.text.strip()
+    if not red_neighbors_text.isdigit():
+        await update.message.reply_text("Пожалуйста, введите целое число для количества соседей.")
+        return SET_DRUNK_RED_NEIGHBORS
+
+    red_neighbors = int(red_neighbors_text)
+    token_number = context.user_data['drunk_token_number']
+
+    update_token_red_neighbors(token_number, red_neighbors)
+    logger.info(f"Жетон {token_number}: количество красных соседей обновлено до {red_neighbors}")
+
+    await update.message.reply_text(f"Жетон {token_number} теперь имеет {red_neighbors} красных соседей и помечен как 'пьяный'.")
+
+    player_id = update.effective_user.id
+    count_red_neighbors_of_blue_tokens()
+    await show_game_set(context, player_id, moderator=True)
+
+    return await invite_player(update, context)
+
 
 def count_red_neighbors_of_blue_tokens():
     """

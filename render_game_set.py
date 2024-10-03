@@ -10,7 +10,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from database import get_latest_game_set, get_all_tokens
 from distributions import POSITIONS_MAP
-from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 logger = logging.getLogger(__name__)
 
 FONT_PATH = os.path.join(os.path.dirname(__file__), 'fonts', 'DejaVuSans.ttf')
@@ -28,7 +27,6 @@ async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, modera
     Если moderator=False, отображает все живые жетоны одного цвета.
     Мертвые жетоны отображаются серым цветом без значения red_neighbors.
     """
-    count_red_neighbors_of_blue_tokens()
     
     game_set = get_latest_game_set()
 

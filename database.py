@@ -367,3 +367,19 @@ def update_token_drunk(token_id, db_path='empaths.db'):
         logger.error(f"Ошибка при обновлении жетона: {e}")
     finally:
         conn.close()
+
+def make_all_tokens_sober(db_path='empaths.db'):
+    """
+    Устанавливает поле drunk у всех жетонов на False.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute('UPDATE tokens SET drunk = 0')
+        conn.commit()
+        logger.info("У всех жетонов обновилось поле drunk на False")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении жетона: {e}")
+    finally:
+        conn.close()
+

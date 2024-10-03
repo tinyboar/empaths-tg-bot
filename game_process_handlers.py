@@ -11,10 +11,19 @@ from database import (
     get_red_tokens,
     update_token_red_neighbors,
     update_token_kill,
-    reset_user_game_state
+    reset_user_game_state,
+    make_all_tokens_sober
 )
+from red_neighbors_handlers import count_red_neighbors_of_blue_tokens, make_drunk
 from render_game_set import show_game_set
-from constants import EXECUTE_TOKEN, GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, CONFIRM_INVITE, CONFIRM_KILL, SKIP_ENTER_NEIGHBORS
+from constants import (
+  EXECUTE_TOKEN, 
+  GET_RED_TOKEN_RED_NEIGHBORS_IN_GAME, 
+  CONFIRM_INVITE, 
+  CONFIRM_KILL, 
+  SKIP_ENTER_NEIGHBORS,
+  MAKE_DRUNK
+)
 import logging
 
 from player_manager import invite_player
@@ -40,6 +49,7 @@ async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     # Отправляем карту жетонов игроку
+    count_red_neighbors_of_blue_tokens()
     await show_game_set(context, player_id, moderator=False)
     logger.info(f"Игроку @{player_username} ({player_id}) отправлена карта жетонов.")
     update_user_on_game(player_id, True)
@@ -82,6 +92,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     # Проверка, является ли выбранный жетон демоном
     if token['character'] == 'demon':
         # Сообщение игроку о победе
+        count_red_neighbors_of_blue_tokens()
         await show_game_set(context, user_id, moderator=True)
         await update.message.reply_text("🏆 Вы казнили демона, победа синего города!")
 
@@ -106,6 +117,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     # Если жетон не является демоном, обновляем его статус на "убит"
     update_token_kill(token_id)
     logger.info(f"Игрок @{username} выбрал для казни жетон {token_id}, и его статус был обновлен на 'убит'.")
+    count_red_neighbors_of_blue_tokens()
     await show_game_set(context, user_id, moderator=False)
     await update.message.reply_text(f"Жетон {token_id} выбран для казни и его статус обновлен. Ждем ход модератора..")
 
@@ -115,6 +127,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
         moderator_id = moderator['id']
         message = f"Игрок @{username} выбрал для казни жетон {token_id}."
         try:
+            count_red_neighbors_of_blue_tokens()
             await show_game_set(context, moderator_id, moderator=True)
             await context.bot.send_message(chat_id=moderator_id, text=message)
             logger.info(f"Модератору отправлено сообщение о выборе игрока @{username}.")
@@ -132,7 +145,7 @@ async def execute_token_player(update: Update, context: ContextTypes.DEFAULT_TYP
     await context.bot.send_message(
         chat_id=moderator_id,
         text="/enter_neighbors, ввести соседей для красных жетонов\n\n"
-        "/skip_enter_neighbors, пропустить шаг выбора соседей и перейти к выболру жетона для убийства",
+        "/skip_enter_neighbors, пропустить шаг выбора соседей для красных и перейти к выбору жетона для убийства",
         parse_mode='HTML'
     )
 
@@ -144,6 +157,9 @@ async def skip_enter_neighbors(update: Update, context: ContextTypes.DEFAULT_TYP
     Пропускает ввод количества соседей для красных жетонов и переходит к этапу выбора жетона для убийства.
     """
     await update.message.reply_text("Переходим к выбору жетона для убийства.")
+    
+    make_all_tokens_sober()
+    
     return await kill_token(update, context)
 
 
@@ -215,9 +231,13 @@ async def reenter_red_neighbors_for_red(update: Update, context: ContextTypes.DE
     else:
         # Все данные введены, сохраняем изменения и отправляем обновлённую раскладку
         await update.message.reply_text("Ввод количества красных соседей завершён.")
+
+        make_all_tokens_sober()
+
         player_id = get_latest_game_set().get('player_id')
 
         # Отправляем обновлённую раскладку модератору
+        count_red_neighbors_of_blue_tokens()
         await show_game_set(context, update.effective_user.id, moderator=True)
 
         # Сбрасываем флаги и очищаем данные
@@ -258,6 +278,7 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         game_set = get_latest_game_set()
         player_id = game_set.get('player_id')
         
+        count_red_neighbors_of_blue_tokens()
         await show_game_set(context, player_id, moderator=True)
         await context.bot.send_message(
             chat_id=player_id,
@@ -280,6 +301,7 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     update_token_kill(token_id)
     logger.info(f"Жетон {token_id} выбран для убийства и помечен как убит.")
     await update.message.reply_text(f"Жетон {token_id} выбран для убийства и его статус обновлен.")
+    count_red_neighbors_of_blue_tokens()
     await show_game_set(context, update.effective_user.id, moderator=True)
 
     # Проверяем, не закончилась ли игра победой красных
@@ -288,7 +310,8 @@ async def confirm_kill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if is_red_won:
         return ConversationHandler.END
 
-    return await invite_player(update, context)
+    await make_drunk(update, context)
+    return MAKE_DRUNK
 
 async def red_won(context: ContextTypes.DEFAULT_TYPE) -> bool:
     """
@@ -305,14 +328,14 @@ async def red_won(context: ContextTypes.DEFAULT_TYPE) -> bool:
         if moderators:
             moderator = moderators[0]
             moderator_id = moderator['id']
-
+            count_red_neighbors_of_blue_tokens()
             await show_game_set(context, moderator_id, moderator=True)
             await context.bot.send_message(
                 chat_id=moderator_id,
                 text="🔥 В игре осталось всего 2 жетона, это победа красных!\n\n/start чтобы начать заново",
                 parse_mode='HTML'
             )
-
+            count_red_neighbors_of_blue_tokens()
             await show_game_set(context, player_id, moderator=True)
             await context.bot.send_message(
                 chat_id=player_id,
