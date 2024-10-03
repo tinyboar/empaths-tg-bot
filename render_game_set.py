@@ -10,10 +10,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from database import get_latest_game_set, get_all_tokens
 from distributions import POSITIONS_MAP
-
+from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 logger = logging.getLogger(__name__)
 
-# Путь к шрифтам
 FONT_PATH = os.path.join(os.path.dirname(__file__), 'fonts', 'DejaVuSans.ttf')
 
 def escape_markdown_v2(text: str) -> str:
@@ -22,13 +21,15 @@ def escape_markdown_v2(text: str) -> str:
     """
     return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
 
-async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, moderator: bool) -> None:
+async def show_game_set(context: ContextTypes.DEFAULT_TYPE, chat_id: int, moderator: bool) -> None:
     """
     Показывает настройки игры, включая визуализацию карты жетонов.
     Если moderator=True, отображает реальные цвета жетонов.
     Если moderator=False, отображает все живые жетоны одного цвета.
     Мертвые жетоны отображаются серым цветом без значения red_neighbors.
     """
+    count_red_neighbors_of_blue_tokens()
+    
     game_set = get_latest_game_set()
 
     if game_set:
@@ -42,7 +43,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         if not token_map:
             message = "Карта распределения жетонов для данного количества жетонов не найдена."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.warning(f"Карта распределения жетонов для tokens_count={tokens_count} не найдена.")
             return
 
@@ -52,7 +53,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         if not tokens_data:
             message = "Жетоны не найдены."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.warning("Жетоны не найдены.")
             return
 
@@ -88,11 +89,8 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
                     # Игрок видит все живые жетоны одного цвета
                     tokens_colors.append('lightblue')  # Например, светло-синий для всех живых жетонов
 
-                # Добавляем red_neighbors только если жетон жив и показываем его модератору
-                if alive:
-                    red_neighbors_list.append(red_neighbors)
-                else:
-                    red_neighbors_list.append(None)
+                # Добавляем red_neighbors для всех живых жетонов (и для игрока, и для модератора)
+                red_neighbors_list.append(red_neighbors)
 
         # Рассчитываем позиции жетонов по кругу
         image_size = 500  # Размер изображения
@@ -108,7 +106,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         if not os.path.isfile(FONT_PATH):
             message = f"Файл шрифта не найден по пути '{FONT_PATH}'."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.error(f"Файл шрифта не найден по пути '{FONT_PATH}'.")
             return
 
@@ -119,7 +117,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         except Exception as e:
             message = "Не удалось загрузить шрифт."
             escaped_message = escape_markdown_v2(message)
-            await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+            await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
             logger.error(f"Ошибка при загрузке шрифта: {e}")
             return
 
@@ -150,7 +148,7 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
             number_y = y - number_height / 2
             draw.text((number_x, number_y), token_number, fill='black', font=font)
 
-            # Значение red_neighbors справа от жетона (только для живых жетонов и модераторов)
+            # Значение red_neighbors справа от жетона (только для живых жетонов)
             if red_neighbors_list[i] is not None:
                 red_neighbors = red_neighbors_list[i]
                 red_neighbors_text = str(red_neighbors)
@@ -167,19 +165,19 @@ async def show_game_set(update: Update, context: ContextTypes.DEFAULT_TYPE, mode
         # Экранирование и форматирование информации об игре
         escaped_player_username = escape_markdown_v2(player_username)
         game_info = (
-            f"**Текущие настройки игры:**\n"
-            f"**Игрок:** {escaped_player_username}\n"
-            f"**Количество жетонов \\(tokens_count\\):** {tokens_count}\n"
-            f"**Количество красных жетонов \\(red_count\\):** {red_count}\n\n"
-            f"**Карта распределения жетонов:**"
+            f"Текущие настройки игры:\n"
+            f"Игрок: @{escaped_player_username}\n"
+            f"Количество жетонов: {tokens_count}\n"
+            f"Количество красных жетонов: {red_count}\n\n"
+            f"Карта распределения жетонов:"
         )
 
         # Отправляем информацию и изображение
-        await update.message.reply_text(game_info, parse_mode='MarkdownV2')
-        await update.message.reply_photo(photo=image_bytes, caption="Карта распределения жетонов")
+        await context.bot.send_message(chat_id=chat_id, text=game_info, parse_mode='MarkdownV2')
+        await context.bot.send_photo(chat_id=chat_id, photo=image_bytes, caption="Карта распределения жетонов")
         logger.info("Показаны настройки игры с картой жетонов.")
     else:
         message = "Настройки игры не найдены."
         escaped_message = escape_markdown_v2(message)
-        await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
+        await context.bot.send_message(chat_id=chat_id, text=escaped_message, parse_mode='MarkdownV2')
         logger.warning("Настройки игры не найдены.")

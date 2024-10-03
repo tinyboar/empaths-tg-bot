@@ -3,16 +3,9 @@ import logging
 import sqlite3
 from db_queries import (
     CREATE_USERS_TABLE,
-    INSERT_USER,
-    UPDATE_USER_AS_MODERATOR,
-    UPDATE_USER_USERNAME,
     CREATE_GAME_SET_TABLE,
-    INSERT_GAME_SET,
-    UPDATE_GAME_SET,
     CREATE_TOKENS_TABLE,
     INSERT_TOKEN,
-    DELETE_ALL_TOKENS,
-    SELECT_ALL_TOKENS,
     UPDATE_TOKEN
 )
 
@@ -79,19 +72,18 @@ def is_user_moderator(userid, db_path='empaths.db'):
     return False
 
 
-def add_game_set(tokens_count, red_count, player_username, player_id):
+def add_game_set(tokens_count, red_count, player_username, player_id, moderator_username, moderator_id):
     """
     Добавляет запись в таблицу game_set.
     """
     conn = sqlite3.connect('empaths.db')
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO game_set (tokens_count, red_count, player_username, player_id)
-        VALUES (?, ?, ?, ?)
-    ''', (tokens_count, red_count, player_username, player_id))
+        INSERT INTO game_set (tokens_count, red_count, player_username, player_id, moderator_username, moderator_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (tokens_count, red_count, player_username, player_id, moderator_username, moderator_id))
     conn.commit()
     conn.close()
-    
     
 def get_latest_game_set(db_path='empaths.db'):
     """
@@ -99,7 +91,7 @@ def get_latest_game_set(db_path='empaths.db'):
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT tokens_count, red_count, player_username FROM game_set ORDER BY id DESC LIMIT 1")
+    cursor.execute("SELECT tokens_count, red_count, player_id, player_username, moderator_id, moderator_username FROM game_set ORDER BY id DESC LIMIT 1")
     result = cursor.fetchone()
     conn.close()
 
@@ -107,7 +99,10 @@ def get_latest_game_set(db_path='empaths.db'):
         return {
             'tokens_count': result[0],
             'red_count': result[1],
-            'player_username': result[2]
+            'player_id': result[2],
+            'player_username': result[3],
+            'moderator_id': result[4],
+            'moderator_username': result[5]
         }
     return None
 
@@ -149,6 +144,27 @@ def get_all_tokens(db_path='empaths.db'):
     conn.close()
     return [dict(token) for token in tokens]
 
+
+def get_token_by_id(token_id, db_path='empaths.db'):
+    """
+    Получает информацию о жетоне по ID.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, alignment, character, red_neighbors, alive FROM tokens WHERE id = ?', (token_id,))
+    token = cursor.fetchone()
+    conn.close()
+    if token:
+        return {
+            'id': token[0],
+            'alignment': token[1],
+            'character': token[2],
+            'red_neighbors': token[3],
+            'alive': bool(token[3])
+        }
+    else:
+        return None
+    
 def update_token(token_id, alignment, character, red_neighbors, db_path='empaths.db'):
     """
     Обновляет жетон по его id.
@@ -190,6 +206,59 @@ def update_token_character(token_id, character, db_path='empaths.db'):
     conn.commit()
     conn.close()
     logger.info(f"Жетон с id={token_id} обновлен. character={character}")
+
+def update_token_kill(token_id, db_path='empaths.db'):
+    """
+    Обновляет поле alive жетона по его id.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE tokens SET alive = 0 WHERE id = ?',
+            (token_id,)  # Обратите внимание на запятую, чтобы создать кортеж
+        )
+        conn.commit()
+        logger.info(f"Жетон с id={token_id} обновлен. alive=False")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении жетона: {e}")
+    finally:
+        conn.close()
+
+def get_red_tokens(db_path='empaths.db'):
+    """
+    Возвращает список номеров красных жетонов из базы данных.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM tokens WHERE alignment = 'red'")
+    rows = cursor.fetchall()
+    conn.close()
+    red_token_ids = [row[0] for row in rows]
+    logger.info(f"get_red_tokens: retrieved red tokens: {red_token_ids}")
+    return red_token_ids
+
+
+
+def get_alive_tokens(db_path='empaths.db'):
+    """
+    Возвращает список номеров живых жетонов из базы данных.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM tokens WHERE alive = 1")
+        rows = cursor.fetchall()
+        alive_token_ids = [row[0] for row in rows]
+        logger.info(f"get_alive_tokens: retrieved alive tokens: {alive_token_ids}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error occurred: {e}")
+        alive_token_ids = []
+    finally:
+        if conn:
+            conn.close()
+
+    return alive_token_ids
 
 
 def update_token_red_neighbors(token_id, red_neighbors, db_path='empaths.db'):
@@ -256,3 +325,17 @@ def update_user_on_game(userid, on_game, db_path='empaths.db'):
     conn.close()
 
 
+def reset_user_game_state(user_id):
+    """
+    Сбрасывает состояние on_game для указанного пользователя.
+    """
+    conn = sqlite3.connect('empaths.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE users SET on_game = 0 WHERE id = ?", (user_id,))
+        conn.commit()
+        logger.info(f"Состояние on_game для пользователя с id {user_id} успешно сброшено.")
+    except Exception as e:
+        logger.error(f"Ошибка при сбросе состояния on_game для пользователя с id {user_id}: {e}")
+    finally:
+        conn.close()

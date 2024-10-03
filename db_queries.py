@@ -34,13 +34,15 @@ CREATE TABLE IF NOT EXISTS game_set (
     tokens_count INTEGER,
     red_count INTEGER,
     player_username VARCHAR(255),
-    player_id INTEGER
+    player_id INTEGER,
+    moderator_id INTEGER,
+    moderator_username VARCHAR(255)
 )
 '''
 
 INSERT_GAME_SET = '''
-INSERT INTO game_set (tokens_count, red_count, player_username)
-VALUES (?, ?, ?)
+INSERT INTO game_set (tokens_count, red_count, player_username, moderator_username)
+VALUES (?, ?, ?, ?)
 '''
 
 UPDATE_GAME_SET = '''

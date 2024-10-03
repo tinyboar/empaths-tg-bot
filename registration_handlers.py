@@ -3,14 +3,17 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from database import add_user
+from database import add_user, get_user_by_username, reset_user_game_state
 import logging
-from constants import HANDLE_PASSWORD, GET_USERNAME, SET_UP_GAME
+from constants import HANDLE_PASSWORD, GET_USERNAME
 from game_set_handlers import set_up_game
 from player_manager import (
     player_registration_notice,
     player_start_game_notice
 )
+
+from utils import escape_html
+
 
 MODERATOR_PASSWORD = os.getenv("MODERATOR_PASSWORD")
 if not MODERATOR_PASSWORD:
@@ -39,10 +42,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     is_new_user = add_user(username, userid)
     context.user_data['is_new_user'] = is_new_user
 
+
     await update.message.reply_text(
-        f"Привет, {username}! Ты успешно зарегистрирован.\n\n"
-        "Если вы модератор, введите пароль. Нажими или введи /skip, чтобы продолжить как игрок."
-    )
+            f"Привет, {escape_html(username)}! Ты успешно зарегистрирован.\n"
+            "Введи пароль, чтобы стать модератором партии\n\n"
+            "/skip чтобы продолжить как игрок",
+            parse_mode='HTML'
+        )
 
     return HANDLE_PASSWORD
 
@@ -56,16 +62,17 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if password == MODERATOR_PASSWORD:
         add_user(username, userid, moderator=True)
-        await update.message.reply_text("Вы успешно зарегистрированы как модератор!")
-        logger.info(f"Пользователь {userid} зарегистрирован как модератор.")
+        await update.message.reply_text(
+            "Теперь ты модератор!\n\n"
+            "Введи имя пользователя, с которым собираешься играть(например @username):",
+            parse_mode='HTML'
+            )
 
-        await update.message.reply_text("Введите имя пользователя, с которым вы собираетесь играть(например @username):")
         return GET_USERNAME
     else:
         await update.message.reply_text(
             "Пароль модератора неверный. Введите пароль ещё раз или введите /skip, чтобы продолжить как игрок."
         )
-        logger.warning(f"Неверный пароль от пользователя {userid}.")
         return HANDLE_PASSWORD
 
 async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -73,15 +80,12 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     Обрабатывает ввод имени пользователя для игры и передаёт управление в set_up_game.
     """
     player_username_input = update.message.text.strip()
-    # Удаляем ведущий '@', если он есть
     player_username = player_username_input.lstrip('@')
     
-    # Проверка, что имя пользователя не пустое
     if not player_username:
         await update.message.reply_text("Имя пользователя не может быть пустым. Пожалуйста, введите имя пользователя:")
         return GET_USERNAME
     
-    # Дополнительная валидация имени пользователя (по желанию)
     if not player_username.isalnum():
         await update.message.reply_text("Имя пользователя должно содержать только буквы и цифры. Пожалуйста, введите корректное имя пользователя:")
         return GET_USERNAME
@@ -89,8 +93,28 @@ async def get_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     game_set = context.user_data.setdefault('game_set', {})
     game_set['player_username'] = player_username
     logger.info(f"Получено имя пользователя для игры: {player_username}")
-    await update.message.reply_text("Имя пользователя сохранено. Теперь настройте игру.")
+    await update.message.reply_text(
+        "Имя пользователя сохранено. Теперь настрой игру.\n\n"
+        "Общее игроков должно быть от 7 до 16 включительно\n\n"
+        "Количество красных от 1 до 4 включительно\n\n"
+        "Пока что бот не проверяет соотношение синих и красных игроков\n"
+        "поэтому выбор чисел зависит от модератора\n\n"
+        "После выбора количества игроков тебе будет предложено\n"
+        "выбрать количество красных соседей для красных жетонов\n"
+        "это информация эмпатов\n"
+        "Нужно будет ввести 0, 1 или 2",
+        parse_mode='HTML'
+        )
     
+    player = get_user_by_username(player_username)
+    player_id = player['id']
+
+    await context.bot.send_message(
+        chat_id=player_id,
+        text=(f"Модератор @{update.effective_user.username} выбрал тебя для игры.")
+    )
+    reset_user_game_state(player_id)
+    reset_user_game_state(update.effective_user.id)
     return await set_up_game(update, context)
 
 async def skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -101,12 +125,11 @@ async def skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     username, userid = extract_user_info(user)
     is_new_user = context.user_data.get('is_new_user', False)
 
-    await update.message.reply_text("Вы зарегистрированы как обычный пользователь. Модератор настроит игру и пригласит вас.")
+    await update.message.reply_text("Ты зарегистрирован как игрок. Модератор настроит игру и пригласит тебя.")
 
     if is_new_user:
         await player_registration_notice(context, username, userid)
         await player_start_game_notice(context, username, userid)
-        logger.info(f"Новый игрок зарегистрирован: @{username} ({userid})")
     else:
         await player_start_game_notice(context, username, userid)
         logger.info(f"Пользователь @{username} ({userid}) нажал кнопку старта и ожидает начало игры.")

@@ -1,5 +1,3 @@
-# game_set_handlers.py
-
 import random
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -11,13 +9,12 @@ from database import (
     update_token_character,
     get_latest_game_set,
     get_user_by_id,
+    get_user_by_username,
     update_token_red_neighbors
-    
 )
 import logging
-from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS
+from constants import GET_TOKENS_COUNT, GET_RED_COUNT, GET_RED_TOKEN_NUMBER, GET_DEMON_TOKEN_NUMBER, GET_RED_TOKEN_RED_NEIGHBORS, RANDOM_RED_SET
 from render_game_set import show_game_set
-from red_neighbors_handlers import count_red_neighbors_of_blue_tokens
 from player_manager import invite_player
 
 logger = logging.getLogger(__name__)
@@ -26,7 +23,9 @@ async def set_up_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     """
     Начинает настройку игры после ввода имени пользователя.
     """
-    await update.message.reply_text("Введите количество жетонов (tokens_count):")
+    await update.message.reply_text(
+        "Введи количество жетонов(это общее количетсво жетонов за столом):"
+        )
     return GET_TOKENS_COUNT
 
 async def get_tokens_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -35,13 +34,17 @@ async def get_tokens_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """
     tokens_count_text = update.message.text.strip()
     if not tokens_count_text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите целое число для количества жетонов.")
+        await update.message.reply_text("Нужно ввести целое число")
         return GET_TOKENS_COUNT
 
     tokens_count = int(tokens_count_text)
+
+    if 'game_set' not in context.user_data:
+        context.user_data['game_set'] = {}
     context.user_data['game_set']['tokens_count'] = tokens_count
-    await update.message.reply_text("Введите количество красных жетонов (red_count):")
+    await update.message.reply_text("Введи количество красных жетонов(включая демона):")
     return GET_RED_COUNT
+
 
 async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -49,13 +52,23 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     red_count_text = update.message.text.strip()
     if not red_count_text.isdigit():
-        await update.message.reply_text("Пожалуйста, введите целое число для количества красных жетонов.")
+        await update.message.reply_text("Пожалуйста, введи целое число для количества красных жетонов.")
         return GET_RED_COUNT
 
     red_count = int(red_count_text)
+    # Проверяем, что tokens_count уже сохранен
+    if 'game_set' not in context.user_data or 'tokens_count' not in context.user_data['game_set']:
+        await update.message.reply_text("Произошла ошибка. Пожалуйста, начни сначала.")
+        return ConversationHandler.END
+
     tokens_count = context.user_data['game_set']['tokens_count']
-    player_id = update.effective_user.id
-    player_username = context.user_data['game_set']['player_username']
+    player_username = context.user_data['game_set'].get('player_username', 'unknown')
+    player = get_user_by_username(player_username)
+    player_id = player['id']
+
+    moderator = update.message.from_user
+    moderator_id = moderator.id
+    moderator_username = moderator.username
 
     # Проверка, что red_count не превышает tokens_count
     if red_count > tokens_count:
@@ -63,7 +76,7 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return GET_RED_COUNT
 
     # Сохраняем настройки игры в базе данных
-    add_game_set(tokens_count, red_count, player_username, player_id)
+    add_game_set(tokens_count, red_count, player_username, player_id, moderator_username, moderator_id)
     await update.message.reply_text("Настройки игры успешно сохранены!")
     logger.info(f"Игра создана: tokens_count={tokens_count}, red_count={red_count}, player_username={player_username}")
 
@@ -75,19 +88,87 @@ async def get_red_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     add_tokens(tokens_list)
     logger.info(f"Создано {tokens_count} жетонов в таблице tokens.")
 
-    # Показываем начальные настройки игры с серыми жетонами
-    await show_game_set(update, context, moderator=True)
+    # Сохраняем red_count в context.user_data для дальнейшего использования
+    context.user_data['game_set']['red_count'] = red_count
 
-    # Инициализируем данные для ввода номеров красных жетонов
-    context.user_data['red_count'] = red_count
-    context.user_data['tokens_count'] = tokens_count
+    # Предложение модератору выбрать метод расстановки красных жетонов
+    await update.message.reply_text(
+        "/random_red_set для случайной рассадки красных жетонов и демона\n\n",
+        # "/manual_entry_red_set для ручного выбора.",
+        parse_mode='HTML'
+        )
+    return RANDOM_RED_SET
+
+
+async def random_red_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Выполняет случайную рассадку красных жетонов и одного демона.
+    """
+    logger.debug("Функция random_red_set вызвана")
+
+    tokens_count = context.user_data['game_set']['tokens_count']
+    red_count = context.user_data['game_set']['red_count']
+
+    player_username = context.user_data['game_set']['player_username']
+    player = get_user_by_username(player_username)
+    player_id = player['id']
+    await context.bot.send_message(
+        chat_id=player_id,
+        text="Модератор выбрал рандомную рассадку."
+    )
+
+    # Генерируем случайные индексы для красных жетонов
+    red_indices = random.sample(range(1, tokens_count + 1), red_count)
+
+    # Обновляем базу данных с красными жетонами и назначаем демона
+    for i, token_number in enumerate(red_indices):
+        update_token_alignment(token_number, 'red')
+        if i == 0:
+            update_token_character(token_number, 'demon')
+            logger.info(f"Жетон номер {token_number} помечен как демон.")
+        else:
+            update_token_character(token_number, 'minion')
+            logger.info(f"Жетон номер {token_number} помечен как красный.")
+
+    # Показываем обновлённые настройки игры
+    await show_game_set(context, update.effective_user.id, moderator=True)
+
+    # Переходим к следующему этапу — запросу количества соседей для красных жетонов
+    context.user_data['red_tokens'] = red_indices
+    context.user_data['current_red_token_index'] = 0
+
+    first_red_token = red_indices[0]
+    await update.message.reply_text(f"Введите количество красных соседей для жетона номер {first_red_token}:")
+    return GET_RED_TOKEN_RED_NEIGHBORS
+
+
+
+async def manual_entry_red_set(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Начинает процесс ручного выбора красных жетонов.
+    """
+    logger.debug("Функция manual_entry_red_set вызвана")
+    
+    player_username = context.user_data['game_set']['player_username']
+    player = get_user_by_username(player_username)
+    player_id = player['id']
+
+    # Отправляем сообщение выбранному игроку о выборе случайной рассадки
+    await context.bot.send_message(
+        chat_id=player_id,
+        text="Модератор рассаживает красных вручную."
+    )
+    
+    red_count = context.user_data['game_set']['red_count']
     context.user_data['selected_red_tokens'] = []
     context.user_data['current_red_token_index'] = 1  # Индекс текущего запрашиваемого красного жетона
 
     # Запрашиваем первый номер красного жетона
+    await show_game_set(context, update.effective_user.id, moderator=True)
     await update.message.reply_text(f"Какие номера жетонов будут красными?")
     await update.message.reply_text(f"Выберите первый из {red_count} красных жетонов:")
     return GET_RED_TOKEN_NUMBER
+
 
 async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
@@ -99,8 +180,14 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
         return GET_RED_TOKEN_NUMBER
 
     token_number = int(token_number_text)
-    tokens_count = context.user_data['tokens_count']
-    selected_red_tokens = context.user_data['selected_red_tokens']
+
+    # Проверяем наличие tokens_count в context.user_data['game_set']
+    if 'game_set' not in context.user_data or 'tokens_count' not in context.user_data['game_set']:
+        await update.message.reply_text("Произошла ошибка. Пожалуйста, начните сначала.")
+        return ConversationHandler.END
+
+    tokens_count = context.user_data['game_set']['tokens_count']
+    selected_red_tokens = context.user_data.setdefault('selected_red_tokens', [])
 
     if token_number < 1 or token_number > tokens_count:
         await update.message.reply_text(f"Пожалуйста, введите номер жетона от 1 до {tokens_count}.")
@@ -117,7 +204,7 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await update.message.reply_text(f"Жетон номер {token_number} стал красным игроком.")
 
-    red_count = context.user_data['red_count']
+    red_count = context.user_data['game_set']['red_count']
     if len(selected_red_tokens) < red_count:
         context.user_data['current_red_token_index'] += 1
         ordinal = {1: "первый", 2: "второй", 3: "третий", 4: "четвёртый", 5: "пятый", 6: "шестой",
@@ -128,6 +215,7 @@ async def get_red_token_number(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         await update.message.reply_text("Выберите номер жетона, который будет демоном из выбранных красных жетонов:")
         return GET_DEMON_TOKEN_NUMBER
+
 
 
 async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -153,10 +241,9 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(f"Жетон номер {token_number} теперь является демоном.")
 
     # Вызываем функцию для подсчёта красных соседей у синих жетонов
-    count_red_neighbors_of_blue_tokens()
     logger.info("Подсчёт красных соседей для синих жетонов завершён.")
-
-    await show_game_set(update, context, moderator=True)
+    player_id = update.effective_user.id
+    await show_game_set(context, player_id, moderator=True)
 
     # Инициализируем данные для ввода red_neighbors для красных жетонов
     context.user_data['red_tokens'] = selected_red_tokens
@@ -164,7 +251,7 @@ async def get_demon_token_number(update: Update, context: ContextTypes.DEFAULT_T
 
     # Запрашиваем количество соседей для первого красного жетона
     first_red_token = context.user_data['red_tokens'][0]
-    await update.message.reply_text(f"Введите количество соседей для жетона номер {first_red_token}:")
+    await update.message.reply_text(f"Введите количество красных соседей для жетона номер {first_red_token}:")
     return GET_RED_TOKEN_RED_NEIGHBORS
 
 
@@ -193,10 +280,11 @@ async def get_red_token_red_neighbors(update: Update, context: ContextTypes.DEFA
 
     if current_index < len(red_tokens):
         next_token_number = red_tokens[current_index]
-        await update.message.reply_text(f"Введите количество соседей для жетона номер {next_token_number}:")
+        await update.message.reply_text(f"Введите количество красных соседей для жетона номер {next_token_number}:")
         return GET_RED_TOKEN_RED_NEIGHBORS
     else:
-        await show_game_set(update, context, moderator=True)
+        player_id = update.effective_user.id
+        await show_game_set(context, player_id, moderator=True)
         return await invite_player(update, context)
 
 
@@ -226,7 +314,6 @@ async def show_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     is_moderator = user_data.get('moderator', False)
-    count_red_neighbors_of_blue_tokens()
 
     if is_moderator:
         await show_game_set(update, context, moderator=True)
